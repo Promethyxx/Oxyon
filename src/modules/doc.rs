@@ -381,28 +381,45 @@ fn decouper_texte(texte: &str, max_chars: usize) -> Vec<String> {
 
 /// Encode une chaîne pour WinAnsi (PDF Type1 builtin)
 /// Remplace les caractères UTF-8 non supportés par '?'
-fn encoder_winansi(texte: &str) -> String {
+fn encoder_winansi(texte: &str) -> Vec<u8> {
     texte.chars().map(|c| {
-        match c {
+        match c as u32 {
             // ASCII standard
-            '\u{0020}'..='\u{007E}' => c,
-            // Caractères latins courants supportés par WinAnsi
-            'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' | 'Æ' | 'Ç' |
-            'È' | 'É' | 'Ê' | 'Ë' | 'Ì' | 'Í' | 'Î' | 'Ï' |
-            'Ð' | 'Ñ' | 'Ò' | 'Ó' | 'Ô' | 'Õ' | 'Ö' | 'Ø' |
-            'Ù' | 'Ú' | 'Û' | 'Ü' | 'Ý' | 'Þ' | 'ß' |
-            'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'æ' | 'ç' |
-            'è' | 'é' | 'ê' | 'ë' | 'ì' | 'í' | 'î' | 'ï' |
-            'ð' | 'ñ' | 'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' |
-            'ù' | 'ú' | 'û' | 'ü' | 'ý' | 'þ' | 'ÿ' |
-            '€' | '‚' | 'ƒ' | '„' | '…' | '†' | '‡' | 'ˆ' |
-            '‰' | 'Š' | '‹' | 'Œ' | 'Ž' | '\u{2018}' | '\u{2019}' | '\u{201C}' |
-            '\u{201D}' | '•' | '–' | '—' | '˜' | '™' | 'š' | '›' |
-            'œ' | 'ž' | 'Ÿ' | '×' | '÷' => c,
-            // Tab → espaces
-            '\t' => ' ',
-            // Tout le reste → ?
-            _ => '?',
+            0x20..=0x7E => c as u8,
+            // WinAnsi 0x80-0x9F (cp1252 spécifiques)
+            0x20AC => 0x80, // €
+            0x201A => 0x82, // ‚
+            0x0192 => 0x83, // ƒ
+            0x201E => 0x84, // „
+            0x2026 => 0x85, // …
+            0x2020 => 0x86, // †
+            0x2021 => 0x87, // ‡
+            0x02C6 => 0x88, // ˆ
+            0x2030 => 0x89, // ‰
+            0x0160 => 0x8A, // Š
+            0x2039 => 0x8B, // ‹
+            0x0152 => 0x8C, // Œ
+            0x017D => 0x8E, // Ž
+            0x2018 => 0x91, // '
+            0x2019 => 0x92, // '
+            0x201C => 0x93, // "
+            0x201D => 0x94, // "
+            0x2022 => 0x95, // •
+            0x2013 => 0x96, // –
+            0x2014 => 0x97, // —
+            0x02DC => 0x98, // ˜
+            0x2122 => 0x99, // ™
+            0x0161 => 0x9A, // š
+            0x203A => 0x9B, // ›
+            0x0153 => 0x9C, // œ
+            0x017E => 0x9E, // ž
+            0x0178 => 0x9F, // Ÿ
+            // Latin-1 0xA0-0xFF (identiques en WinAnsi et Unicode)
+            0xA0..=0xFF => c as u8,
+            // Tab → espace
+            0x09 => 0x20,
+            // Tout le reste
+            _ => b'?',
         }
     }).collect()
 }
