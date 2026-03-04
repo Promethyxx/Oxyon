@@ -848,3 +848,71 @@ fn test_video_copie_flux() {
     assert_output(&output, "copie flux");
     cleanup(&output);
 }
+// ═══════════════════════════════════════════════════════════════
+//  AUDIO — extraction depuis vidéo
+// ═══════════════════════════════════════════════════════════════
+#[test]
+fn test_audio_extraire_depuis_mkv() {
+    setup();
+    let input = format!("{TEST_VIDEO}/MKV.mkv");
+    let output = format!("{OUT}/audio_extrait.mkv");
+    cleanup(&output);
+    let result = crate::modules::audio::extraire(Path::new(&input), &output);
+    assert!(result.is_ok(), "audio extraire spawn échoué");
+    let status = result.unwrap().wait().unwrap();
+    assert!(status.success(), "audio extraire code={:?}", status.code());
+    assert_output(&output, "audio extraire mkv");
+    cleanup(&output);
+}
+
+#[test]
+fn test_audio_extraire_depuis_mp4() {
+    setup();
+    let input = format!("{TEST_VIDEO}/MP4.mp4");
+    let output = format!("{OUT}/audio_extrait_mp4.mkv");
+    cleanup(&output);
+    let result = crate::modules::audio::extraire(Path::new(&input), &output);
+    assert!(result.is_ok(), "audio extraire mp4 spawn échoué");
+    let status = result.unwrap().wait().unwrap();
+    assert!(status.success(), "audio extraire mp4 code={:?}", status.code());
+    assert_output(&output, "audio extraire mp4");
+    cleanup(&output);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DOC — détection de formats
+// ═══════════════════════════════════════════════════════════════
+#[test]
+fn test_doc_detecter_format_entree_md() {
+    setup();
+    let fmt = crate::modules::doc::detecter_format_entree(Path::new(&format!("{TEST_DOC}/MD.md")));
+    println!("  format entree MD: {:?}", fmt);
+}
+
+#[test]
+fn test_doc_detecter_format_entree_docx() {
+    setup();
+    let fmt = crate::modules::doc::detecter_format_entree(Path::new(&format!("{TEST_DOC}/DOCX.docx")));
+    println!("  format entree DOCX: {:?}", fmt);
+}
+
+#[test]
+fn test_doc_detecter_format_entree_html() {
+    setup();
+    let fmt = crate::modules::doc::detecter_format_entree(Path::new(&format!("{TEST_DOC}/HTML.html")));
+    println!("  format entree HTML: {:?}", fmt);
+}
+
+#[test]
+fn test_doc_detecter_format_sortie_pdf() {
+    setup();
+    let fmt = crate::modules::doc::detecter_format_sortie("output.pdf");
+    println!("  format sortie pdf: {:?}", fmt);
+}
+
+#[test]
+fn test_doc_detecter_format_sortie_html() {
+    setup();
+    let fmt = crate::modules::doc::detecter_format_sortie("output.html");
+    println!("  format sortie html: {:?}", fmt);
+}
