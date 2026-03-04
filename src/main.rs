@@ -89,6 +89,8 @@ struct OxyonApp {
         save_audio_format: bool,
         #[cfg(feature = "api")]
         save_video_format: bool,
+        #[cfg(feature = "api")]
+        video_speed: u32,
         image_action: String,
         rotation_angle: u32,
         crop_x: u32,
@@ -155,6 +157,8 @@ impl Default for OxyonApp {
                 save_audio_format: false,
                 #[cfg(feature = "api")]
                 save_video_format: false,
+                #[cfg(feature = "api")]
+                video_speed: 4,
                 image_action: "convert".into(),
                 rotation_angle: 90,
                 crop_x: 0,
@@ -255,6 +259,9 @@ impl OxyonApp {
                     if let Some(copie) = vid.get("copie_flux").and_then(|c| c.as_bool()) {
                         self.copie_flux = copie;
                     }
+                    if let Some(speed) = vid.get("speed").and_then(|s| s.as_integer()) {
+                        self.video_speed = speed as u32;
+                    }
                 }
             }
         }
@@ -339,6 +346,7 @@ impl OxyonApp {
                 let video = parsed.entry("video").or_insert(toml::Value::Table(toml::Table::new()));
                 if let Some(vid_table) = video.as_table_mut() {
                     vid_table.insert("copie_flux".to_string(), toml::Value::Boolean(self.copie_flux));
+                    vid_table.insert("speed".to_string(), toml::Value::Integer(self.video_speed as i64));
                 }
             }
         }
@@ -393,6 +401,8 @@ impl OxyonApp {
         let ratio = self.ratio_img;
         #[cfg(feature = "api")]
         let copie = self.copie_flux;
+        #[cfg(feature = "api")]
+        let video_speed = self.video_speed;
         #[cfg(feature = "api")]
         let audio_action = self.audio_action.clone();
         let img_action = self.image_action.clone();
@@ -510,8 +520,8 @@ impl OxyonApp {
                     },
                     #[cfg(feature = "api")]
                     ModuleType::Video => {
-                        log_info(&format!("Video: copie_flux={} | {:?}", copie, input));
-                        match modules::video::traiter_video(&input, &out_str, copie, false) {
+                        log_info(&format!("Video: copie_flux={} speed={} | {:?}", copie, video_speed, input));
+                        match modules::video::traiter_video(&input, &out_str, copie, false, video_speed) {
                             Ok(mut child) => {
                                 match child.wait() {
                                     Ok(status) if status.success() => Ok(()),
@@ -1079,6 +1089,9 @@ impl eframe::App for OxyonApp {
                         });
                         if ui.checkbox(&mut self.copie_flux, "Copie flux").changed() { self.save_config(); }
                     });
+                    if ui.add(egui::Slider::new(&mut self.video_speed, 0..=8).text("Vitesse (0=qualité, 8=rapide)")).changed() {
+                        self.save_config();
+                    }
                     if ui.checkbox(&mut self.save_video_format, "💾 Sauvegarder ce format").changed() {
                         self.save_config();
                     }
