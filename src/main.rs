@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub mod lang;
 pub mod modules;
 #[cfg(test)]
 #[path = "test.rs"]
@@ -57,6 +58,7 @@ enum ModuleType {
     Tag,
     #[cfg(feature = "api")]
     Video,
+    Rename,
     Settings,
 }
 struct OxyonApp {
@@ -79,6 +81,11 @@ struct OxyonApp {
         #[cfg(feature = "api")]
         tag_edit_val: String,
         current_theme: String,
+        lang: &'static crate::lang::Lang,
+        lang_id: &'static str,
+        rename_cfg: modules::rename::RenameConfig,
+        rename_previews: Vec<(std::path::PathBuf, String)>,
+        rename_results: Vec<modules::rename::RenameResult>,
         tmdb_api_key: String,
         fanart_api_key: String,
         save_doc_format: bool,
@@ -142,7 +149,7 @@ impl Default for OxyonApp {
                 ratio_img: 2,
                 #[cfg(feature = "api")]
                 results_ui: Arc::new(Mutex::new(Vec::new())),
-                status: Arc::new(Mutex::new("Drop files here".into())),
+                status: Arc::new(Mutex::new(crate::lang::EN.drop_files.into())),
                 deps_manquantes: Vec::new(),
                 #[cfg(feature = "api")]
                 audio_action: "Convert".into(),
@@ -200,6 +207,11 @@ impl Default for OxyonApp {
                 completed_jobs: Arc::new(Mutex::new(0)),
                 total_jobs: Arc::new(Mutex::new(0)),
                 job_queue: Arc::new(Mutex::new(Vec::new())),
+                rename_cfg: modules::rename::RenameConfig::default(),
+                rename_previews: Vec::new(),
+                rename_results: Vec::new(),
+                lang: &crate::lang::EN,
+                lang_id: "en",
         }
     }
 }
@@ -208,6 +220,7 @@ impl OxyonApp {
         match self.module_actif {
             ModuleType::Image => self.format_choisi = String::new(),
             ModuleType::Doc => self.format_choisi = String::new(),
+            ModuleType::Rename => {},
             #[cfg(feature = "api")]
             ModuleType::Video => self.format_choisi = String::new(),
             #[cfg(feature = "api")]
@@ -223,6 +236,10 @@ impl OxyonApp {
                 }
                 if let Some(max_jobs) = parsed.get("performance").and_then(|p| p.get("max_parallel_jobs")).and_then(|j| j.as_integer()) {
                     self.max_parallel_jobs = max_jobs as usize;
+                }
+                if let Some(lang_str) = parsed.get("app").and_then(|a| a.get("lang")).and_then(|l| l.as_str()) {
+                    self.lang = match lang_str { "fr" => &crate::lang::FR, _ => &crate::lang::EN };
+                    self.lang_id = match lang_str { "fr" => "fr", _ => "en" };
                 }
                 if let Some(doc) = parsed.get("doc") {
                     if let Some(fmt) = doc.get("format").and_then(|f| f.as_str()) {
@@ -296,6 +313,10 @@ impl OxyonApp {
         let perf = parsed.entry("performance").or_insert(toml::Value::Table(toml::Table::new()));
         if let Some(perf_table) = perf.as_table_mut() {
             perf_table.insert("max_parallel_jobs".to_string(), toml::Value::Integer(self.max_parallel_jobs as i64));
+        }
+        let app = parsed.entry("app").or_insert(toml::Value::Table(toml::Table::new()));
+        if let Some(app_table) = app.as_table_mut() {
+            app_table.insert("lang".to_string(), toml::Value::String(self.lang_id.to_string()));
         }
         if self.save_doc_format && !self.format_choisi.is_empty() && self.module_actif == ModuleType::Doc {
             let doc = parsed.entry("doc").or_insert(toml::Value::Table(toml::Table::new()));
@@ -411,7 +432,7 @@ impl OxyonApp {
         queue.clear();
         queue.extend(self.current_files.clone());
         drop(queue);
-        *self.status.lock().unwrap() = format!("🚀 Starting {} tasks...", self.current_files.len());
+        *self.status.lock().unwrap() = self.lang.starting_tasks.replace("{}", &self.current_files.len().to_string());
         for _ in 0..self.max_parallel_jobs.min(self.current_files.len()) {
             self.spawn_worker(ctx.clone());
         }
@@ -422,6 +443,7 @@ impl OxyonApp {
         let completed = Arc::clone(&self.completed_jobs);
         let total = Arc::clone(&self.total_jobs);
         let status_arc = Arc::clone(&self.status);
+        let lang = self.lang;
         let module = self.module_actif;
         let fmt = self.format_choisi.clone();
         let ratio = self.ratio_img;
@@ -496,7 +518,7 @@ impl OxyonApp {
 
                 let current = *completed.lock().unwrap() + *active.lock().unwrap();
                 let total_count = *total.lock().unwrap();
-                *status_arc.lock().unwrap() = format!("⚙️ Processing {}/{} files...", current, total_count);
+                *status_arc.lock().unwrap() = crate::lang::fmt2(lang.processing_files, &current.to_string(), &total_count.to_string());
                 ctx.request_repaint();
 
                 // ── Exécution avec résultat détaillé ────────────────────
@@ -763,9 +785,9 @@ impl OxyonApp {
                 let total_count = *total.lock().unwrap();
                 if done >= total_count {
                     log_info(&format!("=== BATCH END | {}/{} files processed ===", done, total_count));
-                    *status_arc.lock().unwrap() = format!("✅ Done: {}/{} files", done, total_count);
+                    *status_arc.lock().unwrap() = crate::lang::fmt2(lang.done_files, &done.to_string(), &total_count.to_string());
                 } else {
-                    *status_arc.lock().unwrap() = format!("⚙️ Processing {}/{} files...", done, total_count);
+                    *status_arc.lock().unwrap() = crate::lang::fmt2(lang.processing_files, &done.to_string(), &total_count.to_string());
                 }
                 ctx.request_repaint();
             }
@@ -787,12 +809,12 @@ impl eframe::App for OxyonApp {
                 }
                 #[cfg(feature = "api")]
                 self.results_ui.lock().unwrap().clear();
-                *self.status.lock().unwrap() = format!("📁 {} files loaded", self.current_files.len());
+                *self.status.lock().unwrap() = self.lang.files_loaded.replace("{}", &self.current_files.len().to_string());
             }
         });
         if let Some(ref mut c) = self.process {
             if let Ok(Some(_)) = c.try_wait() {
-                *self.status.lock().unwrap() = "✅ Done".into();
+                *self.status.lock().unwrap() = self.lang.done.into();
                 self.process = None;
             }
             ctx.request_repaint();
@@ -800,7 +822,7 @@ impl eframe::App for OxyonApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical_centered(|ui| ui.heading(format!("OXYON v{}", VERSION)));
             if !self.deps_manquantes.is_empty() {
-                ui.colored_label(egui::Color32::RED, format!("⚠️ Missing: {}", self.deps_manquantes.join(", ")));
+                ui.colored_label(egui::Color32::RED, self.lang.missing.replace("{}", &self.deps_manquantes.join(", ")));
             }
             ui.separator();
             ui.horizontal_wrapped(|ui| {
@@ -808,11 +830,12 @@ impl eframe::App for OxyonApp {
                 #[cfg(feature = "api")] mods.push((ModuleType::Archive, "📦 Archive"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Audio, "🎵 Audio"));
                 mods.push((ModuleType::Doc, "📄 Doc"));
+                mods.push((ModuleType::Rename, self.lang.tab_rename));
                 mods.push((ModuleType::Image, "🖼️ Image"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Scrapper, "🔍 Scrapper"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Tag, "🏷️ Tag"));
-                #[cfg(feature = "api")] mods.push((ModuleType::Video, "🎬 Video"));
-                mods.push((ModuleType::Settings, "⚙ Settings"));
+                #[cfg(feature = "api")] mods.push((ModuleType::Video, self.lang.tab_video));
+                mods.push((ModuleType::Settings, self.lang.tab_settings));
                 for (m, txt) in mods {
                     if ui.selectable_value(&mut self.module_actif, m, txt).clicked() {
                         self.load_config();
@@ -824,65 +847,65 @@ impl eframe::App for OxyonApp {
                 #[cfg(feature = "api")]
                 ModuleType::Archive => {
                     ui.horizontal(|ui| {
-                        ui.label("Format :");
+                        ui.label(self.lang.format_label);
                         egui::ComboBox::from_id_salt("arfmt").selected_text(&self.format_choisi).show_ui(ui, |ui| {
                             for f in ["7z", "tar", "zip"] {
                                 ui.selectable_value(&mut self.format_choisi, f.into(), f);
                             }
                         });
                     });
-                    if ui.add(egui::Slider::new(&mut self.archive_niveau, 1..=9).text("Compression (1=fast, 9=quality")).changed() {
+                    if ui.add(egui::Slider::new(&mut self.archive_niveau, 1..=9).text(self.lang.compression_slider)).changed() {
                         self.save_config();
                     }
-                    if ui.checkbox(&mut self.save_archive_format, "💾 Save format").changed() {
+                    if ui.checkbox(&mut self.save_archive_format, self.lang.save_format).changed() {
                         self.save_config();
                     }
                 },
                 ModuleType::Doc => {
                     ui.horizontal(|ui| {
-                        ui.label("Action :");
+                        ui.label(self.lang.action_label);
                         egui::ComboBox::from_id_salt("doc_action").selected_text(&self.doc_action).show_ui(ui, |ui| {
-							ui.selectable_value(&mut self.doc_action, "Convert".into(), "Convert");
-                            ui.selectable_value(&mut self.doc_action, "pdf_compress".into(), "PDF compress");
-							ui.selectable_value(&mut self.doc_action, "pdf_crop".into(), "PDF crop");
-                            ui.selectable_value(&mut self.doc_action, "pdf_delete_pages".into(), "PDF delete pages");
-							ui.selectable_value(&mut self.doc_action, "pdf_merge".into(), "PDF merge");
-                            ui.selectable_value(&mut self.doc_action, "pdf_numbers".into(), "PDF Number pages");
-                            ui.selectable_value(&mut self.doc_action, "pdf_organize".into(), "PDF organize pages");
-							ui.selectable_value(&mut self.doc_action, "pdf_protect".into(), "PDF protect");
-                            ui.selectable_value(&mut self.doc_action, "pdf_repair".into(), "PDF repair");
-							ui.selectable_value(&mut self.doc_action, "pdf_rotate".into(), "PDF rotate");
-							ui.selectable_value(&mut self.doc_action, "pdf_split".into(), "PDF split");
-							ui.selectable_value(&mut self.doc_action, "pdf_unlock".into(), "PDF unlock");
-                            ui.selectable_value(&mut self.doc_action, "pdf_watermark".into(), "PDF watermark");
+							ui.selectable_value(&mut self.doc_action, "Convert".into(), self.lang.doc_convert);
+                            ui.selectable_value(&mut self.doc_action, "pdf_compress".into(), self.lang.doc_pdf_compress);
+							ui.selectable_value(&mut self.doc_action, "pdf_crop".into(), self.lang.doc_pdf_crop);
+                            ui.selectable_value(&mut self.doc_action, "pdf_delete_pages".into(), self.lang.doc_pdf_delete_pages);
+							ui.selectable_value(&mut self.doc_action, "pdf_merge".into(), self.lang.doc_pdf_merge);
+                            ui.selectable_value(&mut self.doc_action, "pdf_numbers".into(), self.lang.doc_pdf_number_pages);
+                            ui.selectable_value(&mut self.doc_action, "pdf_organize".into(), self.lang.doc_pdf_organize);
+							ui.selectable_value(&mut self.doc_action, "pdf_protect".into(), self.lang.doc_pdf_protect);
+                            ui.selectable_value(&mut self.doc_action, "pdf_repair".into(), self.lang.doc_pdf_repair);
+							ui.selectable_value(&mut self.doc_action, "pdf_rotate".into(), self.lang.doc_pdf_rotate);
+							ui.selectable_value(&mut self.doc_action, "pdf_split".into(), self.lang.doc_pdf_split);
+							ui.selectable_value(&mut self.doc_action, "pdf_unlock".into(), self.lang.doc_pdf_unlock);
+                            ui.selectable_value(&mut self.doc_action, "pdf_watermark".into(), self.lang.doc_pdf_watermark);
                         });
                     });
                     ui.separator();
                     match self.doc_action.as_str() {
                         "Convert" => {
                             ui.horizontal(|ui| {
-                                ui.label("Format :");
+                                ui.label(self.lang.format_label);
                                 egui::ComboBox::from_id_salt("dfmt").selected_text(&self.format_choisi).show_ui(ui, |ui| {
                                     for f in ["docx","epub","html","md","odt","pdf","rtf","txt"] {
                                         ui.selectable_value(&mut self.format_choisi, f.into(), f);
                                     }
                                 });
                             });
-                            if ui.checkbox(&mut self.save_doc_format, "💾 Save format").changed() {
+                            if ui.checkbox(&mut self.save_doc_format, self.lang.save_format).changed() {
                                 self.save_config();
                             }
                         },
                         "pdf_split" => {
-                            ui.label("✂️ Splits each PDF page into a separate file");
-                            ui.label("💡 Creates a _pages/ folder next to the source file");
+                            ui.label(self.lang.doc_split_hint1);
+                            ui.label(self.lang.doc_split_hint2);
                         },
                         "pdf_merge" => {
-                            ui.label("📎 Merges all loaded files into a single PDF");
-                            ui.label("💡 Output will be merged_oxyon.pdf");
+                            ui.label(self.lang.doc_merge_hint1);
+                            ui.label(self.lang.doc_merge_hint2);
                         },
                         "pdf_rotate" => {
                             ui.horizontal(|ui| {
-                                ui.label("Angle :");
+                                ui.label(self.lang.angle_label);
                                 egui::ComboBox::from_id_salt("pdf_rot").selected_text(format!("{}°", self.pdf_rotation_angle)).show_ui(ui, |ui| {
                                     ui.selectable_value(&mut self.pdf_rotation_angle, 90, "90°");
                                     ui.selectable_value(&mut self.pdf_rotation_angle, 180, "180°");
@@ -890,15 +913,15 @@ impl eframe::App for OxyonApp {
                                 });
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Pages (ex: 1,3,5 ou vide = toutes) :");
+                                ui.label(self.lang.pages_hint);
                                 ui.text_edit_singleline(&mut self.pdf_pages_spec);
                             });
                         },
                         "pdf_compress" => {
-                            ui.label("🗜️ Reduces PDF size by recompressing");
+                            ui.label(self.lang.doc_compress_hint);
                         },
                         "pdf_crop" => {
-                            ui.label("Margins in % (0.0 - 100.0):");
+                            ui.label(self.lang.doc_margins);
                             ui.horizontal(|ui| {
                                 ui.label("X:");
                                 ui.add(egui::Slider::new(&mut self.pdf_crop_x, 0.0..=100.0).fixed_decimals(1));
@@ -912,26 +935,26 @@ impl eframe::App for OxyonApp {
                                 ui.add(egui::Slider::new(&mut self.pdf_crop_h, 1.0..=100.0).fixed_decimals(1));
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Pages :");
+                                ui.label(self.lang.pages_label);
                                 ui.text_edit_singleline(&mut self.pdf_pages_spec);
-                                ui.label("(ex: 1,3,5 ou vide = toutes)");
+                                ui.label(self.lang.pages_hint);
                             });
                         },
                         "pdf_organize" => {
-                            ui.label("🔀 New page order (e.g. 3,1,2):");
+                            ui.label(self.lang.doc_new_order);
                             ui.text_edit_singleline(&mut self.pdf_nouvel_ordre);
                         },
                         "pdf_delete_pages" => {
-                            ui.label("🗑️ Pages to delete (e.g. 2,4,6):");
+                            ui.label(self.lang.doc_delete_pages);
                             ui.text_edit_singleline(&mut self.pdf_pages_spec);
                         },
                         "pdf_numbers" => {
                             ui.horizontal(|ui| {
-                                ui.label("Start:");
+                                ui.label(self.lang.doc_start);
                                 ui.add(egui::Slider::new(&mut self.pdf_num_debut, 1..=999));
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Position :");
+                                ui.label(self.lang.doc_position);
                                 egui::ComboBox::from_id_salt("pdf_numpos").selected_text(&self.pdf_num_position).show_ui(ui, |ui| {
                                     for pos in ["BasCentre","BasGauche","BasDroite","HautCentre","HautGauche","HautDroite"] {
                                         ui.selectable_value(&mut self.pdf_num_position, pos.into(), pos);
@@ -939,52 +962,52 @@ impl eframe::App for OxyonApp {
                                 });
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Taille :");
+                                ui.label(self.lang.doc_size);
                                 ui.add(egui::Slider::new(&mut self.pdf_num_taille, 6.0..=36.0).fixed_decimals(0));
                             });
                         },
                         "pdf_protect" => {
                             ui.horizontal(|ui| {
-                                ui.label("Owner password:");
+                                ui.label(self.lang.doc_owner_password);
                                 ui.add(egui::TextEdit::singleline(&mut self.pdf_owner_pass).password(true));
                             });
                             ui.horizontal(|ui| {
-                                ui.label("User password:");
+                                ui.label(self.lang.doc_user_password);
                                 ui.add(egui::TextEdit::singleline(&mut self.pdf_user_pass).password(true));
                             });
-                            ui.checkbox(&mut self.pdf_allow_print, "Allow printing");
-                            ui.checkbox(&mut self.pdf_allow_copy, "Allow copying");
+                            ui.checkbox(&mut self.pdf_allow_print, self.lang.doc_allow_print);
+                            ui.checkbox(&mut self.pdf_allow_copy, self.lang.doc_allow_copy);
                         },
                         "pdf_unlock" => {
                             ui.horizontal(|ui| {
-                                ui.label("Password:");
+                                ui.label(self.lang.doc_password);
                                 ui.add(egui::TextEdit::singleline(&mut self.pdf_unlock_pass).password(true));
                             });
                         },
                         "pdf_repair" => {
-                            ui.label("🔧 Attempts to repair a corrupted document");
-                            ui.label("Removes orphan objects, recompresses, renumbers");
-                            ui.label("💡 Works on all Doc module formats");
+                            ui.label(self.lang.doc_repair_hint1);
+                            ui.label(self.lang.doc_repair_hint2);
+                            ui.label(self.lang.doc_repair_hint3);
                         },
                         "pdf_watermark" => {
-                            ui.label("💧 Adds a diagonal text watermark");
-                            ui.label("💡 Works on all Doc module formats");
+                            ui.label(self.lang.doc_watermark_hint1);
+                            ui.label(self.lang.doc_repair_hint3);
                             ui.horizontal(|ui| {
-                                ui.label("Texte :");
+                                ui.label(self.lang.doc_text);
                                 ui.text_edit_singleline(&mut self.pdf_wm_texte);
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Taille :");
+                                ui.label(self.lang.doc_size);
                                 ui.add(egui::Slider::new(&mut self.pdf_wm_taille, 12.0..=120.0).fixed_decimals(0));
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Opacity:");
+                                ui.label(self.lang.doc_opacity);
                                 ui.add(egui::Slider::new(&mut self.pdf_wm_opacite, 0.05..=1.0).fixed_decimals(2));
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Pages :");
+                                ui.label(self.lang.pages_label);
                                 ui.text_edit_singleline(&mut self.pdf_pages_spec);
-                                ui.label("(ex: 1,3,5 ou vide = toutes)");
+                                ui.label(self.lang.pages_hint);
                             });
                         },
                         _ => {}
@@ -992,61 +1015,61 @@ impl eframe::App for OxyonApp {
                 },
                 ModuleType::Image => {
                     ui.horizontal(|ui| {
-                        ui.label("Action :");
+                        ui.label(self.lang.action_label);
                         egui::ComboBox::from_id_salt("img_action").selected_text(&self.image_action).show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.image_action, "Convert".into(), "Convert");
-							ui.selectable_value(&mut self.image_action, "crop".into(), "Crop");
-                            ui.selectable_value(&mut self.image_action, "resize".into(), "Resize");
-                            ui.selectable_value(&mut self.image_action, "rotate".into(), "Rotate");
+                            ui.selectable_value(&mut self.image_action, "Convert".into(), self.lang.doc_convert);
+							ui.selectable_value(&mut self.image_action, "crop".into(), self.lang.img_crop);
+                            ui.selectable_value(&mut self.image_action, "resize".into(), self.lang.img_resize);
+                            ui.selectable_value(&mut self.image_action, "rotate".into(), self.lang.img_rotate);
                         });
                     });
                     ui.separator();
                     match self.image_action.as_str() {
                         "Convert" => {
                             ui.horizontal(|ui| {
-                                ui.label("Format :");
+                                ui.label(self.lang.format_label);
                                 egui::ComboBox::from_id_salt("ifmt").selected_text(&self.format_choisi).show_ui(ui, |ui| {
                                     for f in ["EXR","GIF","ICO","JPG","JXL","PNG","PSD","SVG","TIFF","WebP"] {
                                         ui.selectable_value(&mut self.format_choisi, f.into(), f);
                                     }
                                 });
                             });
-                            if ui.checkbox(&mut self.save_image_format, "💾 Save format").changed() {
+                            if ui.checkbox(&mut self.save_image_format, self.lang.save_format).changed() {
                                 self.save_config();
                             }
-                            if ui.add(egui::Slider::new(&mut self.ratio_img, 1..=10).text("Quality (1=fast, 10=quality)")).changed() {
+                            if ui.add(egui::Slider::new(&mut self.ratio_img, 1..=10).text(self.lang.img_quality_slider)).changed() {
                                 self.save_config();
                             }
                         },
                         "resize" => {
                             ui.horizontal(|ui| {
-                                ui.label("Format :");
+                                ui.label(self.lang.format_label);
                                 egui::ComboBox::from_id_salt("ifmt_resize").selected_text(&self.format_choisi).show_ui(ui, |ui| {
                                     for f in ["EXR","GIF","ICO","JPG","JXL","PNG","PSD","SVG","TIFF","WebP"] {
                                         ui.selectable_value(&mut self.format_choisi, f.into(), f);
                                     }
                                 });
                             });
-                            if ui.checkbox(&mut self.save_image_format, "💾 Save format").changed() {
+                            if ui.checkbox(&mut self.save_image_format, self.lang.save_format).changed() {
                                 self.save_config();
                             }
                             ui.separator();
-                            ui.label("Redimensionner par taille (pixels) :");
+                            ui.label(self.lang.img_resize_px);
                             ui.horizontal(|ui| {
-                                ui.label("Largeur :");
+                                ui.label(self.lang.img_width);
                                 ui.text_edit_singleline(&mut self.resize_width);
-                                ui.label("Hauteur :");
+                                ui.label(self.lang.img_height);
                                 ui.text_edit_singleline(&mut self.resize_height);
                             });
-                            ui.label("ET/OU");
+                            ui.label(self.lang.img_andor);
                             ui.horizontal(|ui| {
-                                ui.label("Poids max (Ko) :");
+                                ui.label(self.lang.img_max_size);
                                 ui.text_edit_singleline(&mut self.resize_max_kb);
                             });
                         },
                         "rotate" => {
                             ui.horizontal(|ui| {
-                                ui.label("Angle :");
+                                ui.label(self.lang.angle_label);
                                 egui::ComboBox::from_id_salt("rot_angle").selected_text(format!("{}°", self.rotation_angle)).show_ui(ui, |ui| {
                                     ui.selectable_value(&mut self.rotation_angle, 90, "90°");
                                     ui.selectable_value(&mut self.rotation_angle, 180, "180°");
@@ -1055,7 +1078,7 @@ impl eframe::App for OxyonApp {
                             });
                         },
                         "crop" => {
-                            ui.label("Coordinates in % (0-100):");
+                            ui.label(self.lang.img_coordinates);
                             ui.horizontal(|ui| {
                                 ui.label("X:");
                                 ui.add(egui::Slider::new(&mut self.crop_x, 0..=100));
@@ -1063,9 +1086,9 @@ impl eframe::App for OxyonApp {
                                 ui.add(egui::Slider::new(&mut self.crop_y, 0..=100));
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Largeur:");
+                                ui.label(self.lang.img_width);
                                 ui.add(egui::Slider::new(&mut self.crop_width, 1..=100));
-                                ui.label("Hauteur:");
+                                ui.label(self.lang.img_height);
                                 ui.add(egui::Slider::new(&mut self.crop_height, 1..=100));
                             });
                         },
@@ -1075,10 +1098,10 @@ impl eframe::App for OxyonApp {
                 #[cfg(feature = "api")]
                 ModuleType::Audio => {
                     ui.horizontal(|ui| {
-                        ui.label("Action :");
+                        ui.label(self.lang.action_label);
                         egui::ComboBox::from_id_salt("audio_action").selected_text(&self.audio_action).show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.audio_action, "extract".into(), "Audio extract");
-							ui.selectable_value(&mut self.audio_action, "Convert".into(), "Convert");                            
+                            ui.selectable_value(&mut self.audio_action, "extract".into(), self.lang.audio_extract);
+							ui.selectable_value(&mut self.audio_action, "Convert".into(), self.lang.doc_convert);                            
                         });
                     });
                     ui.separator();
@@ -1086,7 +1109,7 @@ impl eframe::App for OxyonApp {
                         "Convert" => {
                             // Détection codec au chargement de fichiers
                             if let Some(f) = self.current_files.first() {
-                                if ui.button("🔍 Detect codec").clicked() {
+                                if ui.button(self.lang.audio_detect_codec).clicked() {
                                     let codec = modules::audio::detecter_extension(f);
                                     let fmts = modules::audio::formats_compatibles(&codec);
                                     self.audio_formats_dispo = fmts.iter().map(|s| s.to_string()).collect();
@@ -1094,23 +1117,23 @@ impl eframe::App for OxyonApp {
                                 }
                             }
                             ui.horizontal(|ui| {
-                                ui.label("Format :");
+                                ui.label(self.lang.format_label);
                                 egui::ComboBox::from_id_salt("afmt").selected_text(&self.format_choisi).show_ui(ui, |ui| {
                                     for f in &self.audio_formats_dispo {
                                         ui.selectable_value(&mut self.format_choisi, f.clone(), f.as_str());
                                     }
                                 });
                             });
-                            if ui.add(egui::Slider::new(&mut self.audio_qualite, 0..=9).text("VBR (1=fast, 9=quality)")).changed() {
+                            if ui.add(egui::Slider::new(&mut self.audio_qualite, 0..=9).text(self.lang.audio_vbr_slider)).changed() {
                                 self.save_config();
                             }
-                            if ui.checkbox(&mut self.save_audio_format, "💾 Save format").changed() {
+                            if ui.checkbox(&mut self.save_audio_format, self.lang.save_format).changed() {
                                 self.save_config();
                             }
                         },
                         "extract" => {
-                            ui.label("🎵 Extracts audio from a video (direct copy, no re-encoding)");
-                            ui.label("💡 Output format is detected automatically");
+                            ui.label(self.lang.audio_extract_hint1);
+                            ui.label(self.lang.audio_extract_hint2);
                         },
                         _ => {}
                     }
@@ -1123,26 +1146,26 @@ impl eframe::App for OxyonApp {
                                 ui.selectable_value(&mut self.format_choisi, f.into(), f);
                             }
                         });
-                        if ui.checkbox(&mut self.copie_flux, "Stream copy").changed() { self.save_config(); }
+                        if ui.checkbox(&mut self.copie_flux, self.lang.video_stream_copy).changed() { self.save_config(); }
                     });
-                    if ui.add(egui::Slider::new(&mut self.video_speed, 0..=8).text("Quality (1=fast, 8=quality)")).changed() {
+                    if ui.add(egui::Slider::new(&mut self.video_speed, 0..=8).text(self.lang.video_quality_slider)).changed() {
                         self.save_config();
                     }
-                    if ui.checkbox(&mut self.save_video_format, "💾 Save format").changed() {
+                    if ui.checkbox(&mut self.save_video_format, self.lang.save_format).changed() {
                         self.save_config();
                     }
                 },
                 #[cfg(feature = "api")]
                 ModuleType::Scrapper => {
                     ui.horizontal(|ui| {
-                        ui.label("TMDB API Key :");
+                        ui.label(self.lang.scrap_tmdb_key);
                         ui.add(egui::TextEdit::singleline(&mut self.tmdb_api_key).password(true));
                     });
                     ui.horizontal(|ui| {
-                        ui.label("Fanart API Key :");
+                        ui.label(self.lang.scrap_fanart_key);
                         ui.add(egui::TextEdit::singleline(&mut self.fanart_api_key).password(true));
                     });
-                    if ui.button("💾 Save keys").clicked() {
+                    if ui.button(self.lang.scrap_save_keys).clicked() {
                         let content = format!(
                             "TMDB_API_KEY={}\nFANART_API_KEY={}\n",
                             self.tmdb_api_key, self.fanart_api_key
@@ -1172,10 +1195,10 @@ impl eframe::App for OxyonApp {
                                 }
                             });
                         };
-                        if ui.button("🎬 Movie").clicked() {
+                        if ui.button(self.lang.scrap_movie).clicked() {
                             search(false, Arc::clone(&self.results_ui), self.current_stem.clone(), ctx.clone());
                         }
-                        if ui.button("📺 Series").clicked() {
+                        if ui.button(self.lang.scrap_series).clicked() {
                             search(true, Arc::clone(&self.results_ui), self.current_stem.clone(), ctx.clone());
                         }
                     });
@@ -1185,7 +1208,7 @@ impl eframe::App for OxyonApp {
                             if let Some(t) = &entry.texture { ui.image((t.id(), egui::vec2(50.0, 75.0))); }
                             ui.label(&entry.data.title);
                             if !self.current_files.is_empty() {
-                                if ui.button("Choisir").clicked() { modules::scrap::save_metadata(self.current_files[0].clone(), entry.data.clone()); }
+                                if ui.button(self.lang.scrap_choose).clicked() { modules::scrap::save_metadata(self.current_files[0].clone(), entry.data.clone()); }
                             }
                         });
                     }
@@ -1194,22 +1217,199 @@ impl eframe::App for OxyonApp {
                 ModuleType::Tag => {
                     let path_opt = self.current_files.get(0).cloned();
                     ui.vertical(|ui| {
-                        if ui.button("✅ Mark as WATCHED").clicked() { if let Some(path) = &path_opt { let _ = modules::tag::marquer_vu(&path, &path.with_extension("nfo")); } }
-                        if ui.button("📥 Inject tags from NFO").clicked() { if let Some(path) = &path_opt { let _ = modules::tag::appliquer_tags(&path, &path.with_extension("nfo")); } }
-                        if ui.button("🖼️ Add poster / fanart").clicked() { if let Some(path) = &path_opt { let _ = modules::tag::ajouter_images_mkv(&path); } }
-                        if ui.button("🗑️ Reset Tags").clicked() { if let Some(path) = &path_opt { let _ = modules::tag::supprimer_tous_tags(&path); } }
+                        if ui.button(self.lang.tag_mark_watched).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::marquer_vu(&path, &path.with_extension("nfo")); } }
+                        if ui.button(self.lang.tag_inject_nfo).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::appliquer_tags(&path, &path.with_extension("nfo")); } }
+                        if ui.button(self.lang.tag_add_poster).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::ajouter_images_mkv(&path); } }
+                        if ui.button(self.lang.tag_reset_tags).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::supprimer_tous_tags(&path); } }
                         ui.horizontal(|ui| {
                             ui.text_edit_singleline(&mut self.tag_edit_val);
-                            if ui.button("✏️ Edit Title").clicked() { if let Some(path) = &path_opt { let _ = modules::tag::modifier_tag(&path, "title", &self.tag_edit_val); } }
+                            if ui.button(self.lang.tag_edit_title).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::modifier_tag(&path, "title", &self.tag_edit_val); } }
                         });
+                    });
+                },
+                ModuleType::Rename => {
+                    ui.vertical(|ui| {
+                        self.rename_previews = modules::rename::preview(&self.current_files, &self.rename_cfg);
+
+                        ui.heading(self.lang.tab_rename);
+                        ui.separator();
+
+                        // ── Find & Replace ──────────────────────────────────
+                        ui.collapsing(self.lang.rename_find_replace, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.rename_find);
+                                ui.text_edit_singleline(&mut self.rename_cfg.find);
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.rename_replace_with);
+                                ui.text_edit_singleline(&mut self.rename_cfg.replace_with);
+                            });
+                        });
+
+                        // ── Insertion ───────────────────────────────────────
+                        ui.collapsing(self.lang.rename_insert, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.rename_text);
+                                ui.text_edit_singleline(&mut self.rename_cfg.insert_text);
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.rename_at_pos);
+                                ui.add(egui::DragValue::new(&mut self.rename_cfg.insert_pos).range(0..=999));
+                            });
+                        });
+
+                        // ── Suppression de plage ────────────────────────────
+                        ui.collapsing(self.lang.rename_delete_range, |ui| {
+                            ui.checkbox(&mut self.rename_cfg.delete_enabled, self.lang.rename_enable);
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.rename_from);
+                                ui.add(egui::DragValue::new(&mut self.rename_cfg.delete_from).range(0..=999));
+                                ui.label(self.lang.rename_count);
+                                ui.add(egui::DragValue::new(&mut self.rename_cfg.delete_count).range(0..=999));
+                            });
+                        });
+
+                        // ── Numérotation ────────────────────────────────────
+                        ui.collapsing(self.lang.rename_numbering, |ui| {
+                            ui.checkbox(&mut self.rename_cfg.num_enabled, self.lang.rename_enable);
+                            if self.rename_cfg.num_enabled {
+                                ui.horizontal(|ui| {
+                                    ui.label(self.lang.rename_start);
+                                    ui.add(egui::DragValue::new(&mut self.rename_cfg.num_start).range(0..=99999));
+                                    ui.label(self.lang.rename_step);
+                                    ui.add(egui::DragValue::new(&mut self.rename_cfg.num_step).range(1..=100));
+                                    ui.label(self.lang.rename_padding);
+                                    ui.add(egui::DragValue::new(&mut self.rename_cfg.num_padding).range(0..=10));
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label(self.lang.rename_separator);
+                                    ui.add(egui::TextEdit::singleline(&mut self.rename_cfg.num_sep).desired_width(40.0));
+                                    ui.label(self.lang.rename_position);
+                                    egui::ComboBox::from_id_salt("num_pos")
+                                        .selected_text(match self.rename_cfg.num_pos {
+                                            modules::rename::NumPos::Prefix => self.lang.rename_prefix,
+                                            modules::rename::NumPos::Suffix => self.lang.rename_suffix,
+                                        })
+                                        .show_ui(ui, |ui| {
+                                            ui.selectable_value(&mut self.rename_cfg.num_pos, modules::rename::NumPos::Prefix, self.lang.rename_prefix);
+                                            ui.selectable_value(&mut self.rename_cfg.num_pos, modules::rename::NumPos::Suffix, self.lang.rename_suffix);
+                                        });
+                                });
+                            }
+                        });
+
+                        // ── Casse ───────────────────────────────────────────
+                        ui.collapsing(self.lang.rename_case, |ui| {
+                            ui.horizontal(|ui| {
+                                for mode in [
+                                    modules::rename::CaseMode::Unchanged,
+                                    modules::rename::CaseMode::Lower,
+                                    modules::rename::CaseMode::Upper,
+                                    modules::rename::CaseMode::Title,
+                                    modules::rename::CaseMode::Sentence,
+                                ] as [modules::rename::CaseMode; 5] {
+                                    let label = mode.label();
+                                    ui.selectable_value(&mut self.rename_cfg.case_mode, mode, label);
+                                }
+                            });
+                        });
+
+                        // ── Nettoyage ───────────────────────────────────────
+                        ui.collapsing(self.lang.rename_clean, |ui| {
+                            ui.checkbox(&mut self.rename_cfg.strip_trailing_spaces, self.lang.rename_trim_spaces);
+                            ui.checkbox(&mut self.rename_cfg.strip_double_spaces, self.lang.rename_double_spaces);
+                            ui.checkbox(&mut self.rename_cfg.strip_leading_dots, self.lang.rename_leading_dots);
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.rename_strip_chars);
+                                ui.text_edit_singleline(&mut self.rename_cfg.strip_chars);
+                            });
+                        });
+
+                        // ── Extension ───────────────────────────────────────
+                        ui.collapsing(self.lang.rename_extension, |ui| {
+                            ui.horizontal(|ui| {
+                                for mode in [
+                                    modules::rename::ExtMode::Unchanged,
+                                    modules::rename::ExtMode::Lower,
+                                    modules::rename::ExtMode::Upper,
+                                    modules::rename::ExtMode::Replace,
+                                    modules::rename::ExtMode::Remove,
+                                ] as [modules::rename::ExtMode; 5] {
+                                    let label = mode.label();
+                                    ui.selectable_value(&mut self.rename_cfg.ext_mode, mode, label);
+                                }
+                            });
+                            if self.rename_cfg.ext_mode == modules::rename::ExtMode::Replace {
+                                ui.horizontal(|ui| {
+                                    ui.label(self.lang.rename_new_ext);
+                                    ui.text_edit_singleline(&mut self.rename_cfg.ext_new);
+                                });
+                            }
+                        });
+
+                        ui.separator();
+                        if ui.button(self.lang.rename_reset).clicked() {
+                            self.rename_cfg = modules::rename::RenameConfig::default();
+                        }
+                        ui.separator();
+
+                        // ── Preview ─────────────────────────────────────────
+                        if self.current_files.is_empty() {
+                            ui.label(self.lang.drop_here);
+                        } else {
+                            egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                                egui::Grid::new("rename_preview").striped(true).min_col_width(200.0).show(ui, |ui| {
+                                    ui.strong(self.lang.rename_original);
+                                    ui.strong(self.lang.rename_new_name);
+                                    ui.end_row();
+                                    for (orig, new_name) in &self.rename_previews {
+                                        let orig_str = orig.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                                        if orig_str != new_name {
+                                            ui.colored_label(egui::Color32::LIGHT_GREEN, orig_str);
+                                            ui.colored_label(egui::Color32::LIGHT_GREEN, new_name);
+                                        } else {
+                                            ui.label(orig_str);
+                                            ui.label(new_name);
+                                        }
+                                        ui.end_row();
+                                    }
+                                });
+                            });
+                            ui.separator();
+                            if !self.rename_results.is_empty() {
+                                let ok  = self.rename_results.iter().filter(|r| r.success).count();
+                                let err = self.rename_results.iter().filter(|r| !r.success).count();
+                                if err > 0 {
+                                    ui.colored_label(egui::Color32::RED, format!("✅ {}  ⚠️ {} errors", ok, err));
+                                    for r in self.rename_results.iter().filter(|r| !r.success) {
+                                        if let Some(e) = &r.error {
+                                            ui.colored_label(egui::Color32::RED, format!("  • {}: {}", r.new_name, e));
+                                        }
+                                    }
+                                } else {
+                                    ui.colored_label(egui::Color32::LIGHT_GREEN, format!("✅ {} {}", ok, self.lang.rename_done));
+                                }
+                            }
+                            if ui.button(self.lang.rename_apply).clicked() {
+                                self.rename_results = modules::rename::apply_renames(&self.rename_previews);
+                                for r in &self.rename_results {
+                                    if r.success {
+                                        if let Some(pos) = self.current_files.iter().position(|f| *f == r.original) {
+                                            let parent = r.original.parent().unwrap_or(std::path::Path::new(""));
+                                            self.current_files[pos] = parent.join(&r.new_name);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     });
                 },
                 ModuleType::Settings => {
                     ui.vertical(|ui| {
-                        ui.heading("Settings");
+                        ui.heading(self.lang.settings_heading);
                         let old_theme = self.current_theme.clone();
                         ui.horizontal(|ui| {
-                            ui.label("Theme:");
+                            ui.label(self.lang.settings_theme);
                             egui::ComboBox::from_id_salt("theme_sel").selected_text(&self.current_theme).show_ui(ui, |ui| {
                                 ui.selectable_value(&mut self.current_theme, "Auto".into(), "Auto");
                                 ui.selectable_value(&mut self.current_theme, "Light".into(), "Light");
@@ -1220,33 +1420,45 @@ impl eframe::App for OxyonApp {
                             self.apply_theme(ctx);
                             self.save_config();
                         }
-                        ui.separator();
-                        ui.heading("Performance");
                         ui.horizontal(|ui| {
-                            ui.label("Max parallel jobs:");
+                            ui.label("Language:");
+                            let lang_label = if self.lang_id == "fr" { "Français" } else { "English" };
+                            egui::ComboBox::from_id_salt("lang_sel").selected_text(lang_label).show_ui(ui, |ui| {
+                                if ui.selectable_label(self.lang_id == "en", "English").clicked() {
+                                    self.lang = &crate::lang::EN; self.lang_id = "en"; self.save_config();
+                                }
+                                if ui.selectable_label(self.lang_id == "fr", "Français").clicked() {
+                                    self.lang = &crate::lang::FR; self.lang_id = "fr"; self.save_config();
+                                }
+                            });
+                        });
+                        ui.separator();
+                        ui.heading(self.lang.settings_performance);
+                        ui.horizontal(|ui| {
+                            ui.label(self.lang.settings_max_jobs);
                             if ui.add(egui::Slider::new(&mut self.max_parallel_jobs, 1..=16).text("threads")).changed() {
                                 self.save_config();
                             }
                         });
-                        ui.label("💡 Higher = faster but more CPU load");
+                        ui.label(self.lang.settings_jobs_hint);
                     });
                 },
             }
-            let mut hide_exec = self.module_actif == ModuleType::Settings;
+            let mut hide_exec = self.module_actif == ModuleType::Settings || self.module_actif == ModuleType::Rename;
             #[cfg(feature = "api")]
             { hide_exec = hide_exec || self.module_actif == ModuleType::Scrapper || self.module_actif == ModuleType::Tag; }
             if !self.current_files.is_empty() && !hide_exec {
                 ui.separator();
-                if ui.button("🔥 RUN ALL").clicked() {
+                if ui.button(self.lang.run_all).clicked() {
                     self.lancer_batch(ctx.clone());
                 }
             }
             if self.current_files.is_empty() {
                 ui.centered_and_justified(|ui| {
                     ui.vertical_centered(|ui| {
-                        ui.label("📥 Drop your files here");
+                        ui.label(self.lang.drop_here);
                         ui.add_space(5.0);
-                        if ui.button("📂 Browse").clicked() {
+                        if ui.button(self.lang.browse).clicked() {
                             if let Some(paths) = rfd::FileDialog::new().pick_files() {
                                 self.current_files = paths;
                                 if let Some(p) = self.current_files.first() {
@@ -1254,7 +1466,7 @@ impl eframe::App for OxyonApp {
                                 }
                                 #[cfg(feature = "api")]
                                 self.results_ui.lock().unwrap().clear();
-                                *self.status.lock().unwrap() = format!("📁 {} files loaded", self.current_files.len());
+                                *self.status.lock().unwrap() = self.lang.files_loaded.replace("{}", &self.current_files.len().to_string());
                             }
                         }
                     });
@@ -1267,16 +1479,16 @@ impl eframe::App for OxyonApp {
                 if total > 0 && completed < total {
                     let active = *self.active_jobs.lock().unwrap();
                     let pct = (completed as f32 / total as f32 * 100.0).round() as u32;
-                    ui.heading(format!("⚙️ {}/{} files ({}%)", completed, total, pct));
+                    ui.heading(crate::lang::fmt3(self.lang.processing_pct, &completed.to_string(), &total.to_string(), &pct.to_string()));
                     ui.add(egui::ProgressBar::new(completed as f32 / total as f32).animate(true));
-                    ui.small(format!("{} active · {} pending", active, self.job_queue.lock().unwrap().len()));
+                    ui.small(crate::lang::fmt2(self.lang.active_pending, &active.to_string(), &self.job_queue.lock().unwrap().len().to_string()));
                 } else if total > 0 && completed >= total {
-                    ui.heading(format!("✅ Done - {} files processed", total));
+                    ui.heading(self.lang.done_processed.replace("{}", &total.to_string()));
                 } else {
                     ui.heading(&*self.status.lock().unwrap());
                 }
             });
-            if !self.current_files.is_empty() { if ui.button("🗑️ Clear all").clicked() { self.current_files.clear(); } }
+            if !self.current_files.is_empty() { if ui.button(self.lang.clear_all).clicked() { self.current_files.clear(); } }
         });
     }
 }
