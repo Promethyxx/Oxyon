@@ -830,8 +830,8 @@ impl eframe::App for OxyonApp {
                 #[cfg(feature = "api")] mods.push((ModuleType::Archive, "📦 Archive"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Audio, "🎵 Audio"));
                 mods.push((ModuleType::Doc, "📄 Doc"));
+                mods.push((ModuleType::Image, self.lang.tab_image));
                 mods.push((ModuleType::Rename, self.lang.tab_rename));
-                mods.push((ModuleType::Image, "🖼️ Image"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Scrapper, "🔍 Scrapper"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Tag, "🏷️ Tag"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Video, self.lang.tab_video));
@@ -1217,7 +1217,7 @@ impl eframe::App for OxyonApp {
                 ModuleType::Tag => {
                     let path_opt = self.current_files.get(0).cloned();
                     ui.vertical(|ui| {
-                        if ui.button(self.lang.tag_mark_watched).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::marquer_vu(&path, &path.with_extension("nfo")); } }
+                        if ui.button(self.lang.tag_mark_watched).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::marquer_vu(&path, &path.with_extension("nfo"), self.lang_id); } }
                         if ui.button(self.lang.tag_inject_nfo).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::appliquer_tags(&path, &path.with_extension("nfo")); } }
                         if ui.button(self.lang.tag_add_poster).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::ajouter_images_mkv(&path); } }
                         if ui.button(self.lang.tag_reset_tags).clicked() { if let Some(path) = &path_opt { let _ = modules::tag::supprimer_tous_tags(&path); } }

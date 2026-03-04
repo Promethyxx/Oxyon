@@ -14,6 +14,7 @@ pub struct Lang {
     pub processing_pct: &'static str,       // format: {}/{} ({}%)
 
     // Modules tabs
+    pub tab_image: &'static str,
     pub tab_video: &'static str,
     pub tab_settings: &'static str,
 
@@ -165,6 +166,7 @@ pub const EN: Lang = Lang {
     done_processed: "✅ Done - {} files processed",
     processing_pct: "⚙️ {}/{} files ({}%)",
 
+    tab_image: "🖼️ Picture",
     tab_video: "🎬 Video",
     tab_settings: "⚙ Settings",
 
@@ -305,6 +307,7 @@ pub const FR: Lang = Lang {
     done_processed: "✅ Terminé — {} fichiers traités",
     processing_pct: "⚙️ {}/{} fichiers ({}%)",
 
+    tab_image: "🖼️ Image",
     tab_video: "🎬 Vidéo",
     tab_settings: "⚙ Paramètres",
 

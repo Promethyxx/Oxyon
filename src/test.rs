@@ -5,7 +5,7 @@
 
 use std::path::Path;
 use std::fs;
-use std::sync::Once;
+use std::sync::{Once, Mutex};
 
 const TEST_AUDIO: &str = "tests/audio";
 const TEST_DOC:   &str = "tests/doc";
@@ -15,12 +15,25 @@ const TEST_VIDEO: &str = "tests/video";
 const OUT:        &str = "tests/_output";
 
 static INIT: Once = Once::new();
+/// Mutex global pour sérialiser les opérations ffmpeg (évite les crashs concurrents)
+static FFMPEG_LOCK: Mutex<()> = Mutex::new(());
 
 fn setup() {
     INIT.call_once(|| {
         let _ = crate::modules::binaries::extraire_deps();
     });
     let _ = fs::create_dir_all(OUT);
+}
+
+/// Verrouille le mutex ffmpeg, exécute le spawn PUIS attend la fin (séquentiel garanti)
+fn run_ffmpeg<F>(spawn_fn: F, context: &str)
+where F: FnOnce() -> Result<std::process::Child, std::io::Error>
+{
+    let _lock = FFMPEG_LOCK.lock().unwrap();
+    let result = spawn_fn();
+    assert!(result.is_ok(), "{context} spawn échoué : {:?}", result.err());
+    let status = result.unwrap().wait().unwrap();
+    assert!(status.success(), "{context} code={:?}", status.code());
 }
 
 fn assert_output(path: &str, context: &str) {
@@ -44,10 +57,7 @@ fn test_audio_mp3_vers_wav() {
     let input = format!("{TEST_AUDIO}/MP3.mp3");
     let output = format!("{OUT}/audio_mp3_to_wav.wav");
     cleanup(&output);
-    let result = crate::modules::audio::convertir(Path::new(&input), &output, 2);
-    assert!(result.is_ok(), "audio mp3→wav spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio mp3→wav code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::convertir(Path::new(&input), &output, 1), "audio mp3→wav");
     assert_output(&output, "audio mp3→wav");
     cleanup(&output);
 }
@@ -58,10 +68,7 @@ fn test_audio_wav_vers_flac() {
     let input = format!("{TEST_AUDIO}/WAV.wav");
     let output = format!("{OUT}/audio_wav_to_flac.flac");
     cleanup(&output);
-    let result = crate::modules::audio::convertir(Path::new(&input), &output, 2);
-    assert!(result.is_ok(), "audio wav→flac spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio wav→flac code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::convertir(Path::new(&input), &output, 1), "audio wav→flac");
     assert_output(&output, "audio wav→flac");
     cleanup(&output);
 }
@@ -72,10 +79,7 @@ fn test_audio_ogg_vers_mp3() {
     let input = format!("{TEST_AUDIO}/OGG.ogg");
     let output = format!("{OUT}/audio_ogg_to_mp3.mp3");
     cleanup(&output);
-    let result = crate::modules::audio::convertir(Path::new(&input), &output, 2);
-    assert!(result.is_ok(), "audio ogg→mp3 spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio ogg→mp3 code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::convertir(Path::new(&input), &output, 1), "audio ogg→mp3");
     assert_output(&output, "audio ogg→mp3");
     cleanup(&output);
 }
@@ -86,10 +90,7 @@ fn test_audio_aac_vers_mp3() {
     let input = format!("{TEST_AUDIO}/AAC.aac");
     let output = format!("{OUT}/audio_aac_to_mp3.mp3");
     cleanup(&output);
-    let result = crate::modules::audio::convertir(Path::new(&input), &output, 2);
-    assert!(result.is_ok(), "audio aac→mp3 spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio aac→mp3 code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::convertir(Path::new(&input), &output, 1), "audio aac→mp3");
     assert_output(&output, "audio aac→mp3");
     cleanup(&output);
 }
@@ -100,10 +101,7 @@ fn test_audio_flac_vers_mp3() {
     let input = format!("{TEST_AUDIO}/FLAC.flac");
     let output = format!("{OUT}/audio_flac_to_mp3.mp3");
     cleanup(&output);
-    let result = crate::modules::audio::convertir(Path::new(&input), &output, 2);
-    assert!(result.is_ok(), "audio flac→mp3 spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio flac→mp3 code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::convertir(Path::new(&input), &output, 1), "audio flac→mp3");
     assert_output(&output, "audio flac→mp3");
     cleanup(&output);
 }
@@ -114,10 +112,7 @@ fn test_audio_wav_vers_mp3() {
     let input = format!("{TEST_AUDIO}/WAV.wav");
     let output = format!("{OUT}/audio_wav_to_mp3.mp3");
     cleanup(&output);
-    let result = crate::modules::audio::convertir(Path::new(&input), &output, 2);
-    assert!(result.is_ok(), "audio wav→mp3 spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio wav→mp3 code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::convertir(Path::new(&input), &output, 1), "audio wav→mp3");
     assert_output(&output, "audio wav→mp3");
     cleanup(&output);
 }
@@ -128,10 +123,7 @@ fn test_audio_mp3_vers_ogg() {
     let input = format!("{TEST_AUDIO}/MP3.mp3");
     let output = format!("{OUT}/audio_mp3_to_ogg.ogg");
     cleanup(&output);
-    let result = crate::modules::audio::convertir(Path::new(&input), &output, 2);
-    assert!(result.is_ok(), "audio mp3→ogg spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio mp3→ogg code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::convertir(Path::new(&input), &output, 1), "audio mp3→ogg");
     assert_output(&output, "audio mp3→ogg");
     cleanup(&output);
 }
@@ -142,10 +134,7 @@ fn test_audio_mp3_vers_aac() {
     let input = format!("{TEST_AUDIO}/MP3.mp3");
     let output = format!("{OUT}/audio_mp3_to_aac.aac");
     cleanup(&output);
-    let result = crate::modules::audio::convertir(Path::new(&input), &output, 2);
-    assert!(result.is_ok(), "audio mp3→aac spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio mp3→aac code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::convertir(Path::new(&input), &output, 1), "audio mp3→aac");
     assert_output(&output, "audio mp3→aac");
     cleanup(&output);
 }
@@ -411,6 +400,47 @@ fn test_pic_convertir_tiff_vers_jpg() {
     cleanup(&output);
     assert!(crate::modules::pic::convertir(Path::new(&format!("{TEST_PIC}/Tiff.tiff")), &output));
     assert_output(&output, "TIFF→JPG");
+    cleanup(&output);
+}
+
+
+#[test]
+fn test_pic_convertir_jpg_vers_jxl() {
+    setup();
+    let output = format!("{OUT}/pic_jpg2jxl.jxl");
+    cleanup(&output);
+    assert!(crate::modules::pic::convertir(Path::new(&format!("{TEST_PIC}/JPG.jpg")), &output));
+    assert_output(&output, "JPG→JXL");
+    cleanup(&output);
+}
+
+#[test]
+fn test_pic_convertir_png_vers_jxl() {
+    setup();
+    let output = format!("{OUT}/pic_png2jxl.jxl");
+    cleanup(&output);
+    assert!(crate::modules::pic::convertir(Path::new(&format!("{TEST_PIC}/PNG.png")), &output));
+    assert_output(&output, "PNG→JXL");
+    cleanup(&output);
+}
+
+#[test]
+fn test_pic_convertir_jxl_vers_jpg() {
+    setup();
+    let output = format!("{OUT}/pic_jxl2jpg.jpg");
+    cleanup(&output);
+    assert!(crate::modules::pic::convertir(Path::new(&format!("{TEST_PIC}/JXL.jxl")), &output));
+    assert_output(&output, "JXL→JPG");
+    cleanup(&output);
+}
+
+#[test]
+fn test_pic_convertir_jxl_vers_png() {
+    setup();
+    let output = format!("{OUT}/pic_jxl2png.png");
+    cleanup(&output);
+    assert!(crate::modules::pic::convertir(Path::new(&format!("{TEST_PIC}/JXL.jxl")), &output));
+    assert_output(&output, "JXL→PNG");
     cleanup(&output);
 }
 
@@ -799,10 +829,7 @@ fn test_video_mkv_vers_mp4() {
     let input = std::path::PathBuf::from(format!("{TEST_VIDEO}/MKV.mkv"));
     let output = format!("{OUT}/vid_mkv2mp4.mp4");
     cleanup(&output);
-    let result = crate::modules::video::traiter_video(&input, &output, false, false, 4);
-    assert!(result.is_ok(), "mkv→mp4 spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "mkv→mp4 code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::video::traiter_video(&input, &output, false, false, 1), "mkv→mp4");
     assert_output(&output, "mkv→mp4");
     cleanup(&output);
 }
@@ -813,10 +840,7 @@ fn test_video_mp4_vers_mkv() {
     let input = std::path::PathBuf::from(format!("{TEST_VIDEO}/MP4.mp4"));
     let output = format!("{OUT}/vid_mp42mkv.mkv");
     cleanup(&output);
-    let result = crate::modules::video::traiter_video(&input, &output, false, false, 4);
-    assert!(result.is_ok(), "mp4→mkv spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "mp4→mkv code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::video::traiter_video(&input, &output, false, false, 1), "mp4→mkv");
     assert_output(&output, "mp4→mkv");
     cleanup(&output);
 }
@@ -827,10 +851,7 @@ fn test_video_webm_vers_mp4() {
     let input = std::path::PathBuf::from(format!("{TEST_VIDEO}/WEBM.webm"));
     let output = format!("{OUT}/vid_webm2mp4.mp4");
     cleanup(&output);
-    let result = crate::modules::video::traiter_video(&input, &output, false, false, 4);
-    assert!(result.is_ok(), "webm→mp4 spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "webm→mp4 code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::video::traiter_video(&input, &output, false, false, 1), "webm→mp4");
     assert_output(&output, "webm→mp4");
     cleanup(&output);
 }
@@ -841,10 +862,7 @@ fn test_video_copie_flux() {
     let input = std::path::PathBuf::from(format!("{TEST_VIDEO}/MKV.mkv"));
     let output = format!("{OUT}/vid_copy.mp4");
     cleanup(&output);
-    let result = crate::modules::video::traiter_video(&input, &output, true, false, 4);
-    assert!(result.is_ok(), "copie flux spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "copie flux code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::video::traiter_video(&input, &output, true, false, 1), "copie flux");
     assert_output(&output, "copie flux");
     cleanup(&output);
 }
@@ -857,10 +875,7 @@ fn test_audio_extraire_depuis_mkv() {
     let input = format!("{TEST_VIDEO}/MKV.mkv");
     let output = format!("{OUT}/audio_extrait.mkv");
     cleanup(&output);
-    let result = crate::modules::audio::extraire(Path::new(&input), &output);
-    assert!(result.is_ok(), "audio extraire spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio extraire code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::extraire(Path::new(&input), &output), "audio extraire mkv");
     assert_output(&output, "audio extraire mkv");
     cleanup(&output);
 }
@@ -871,10 +886,7 @@ fn test_audio_extraire_depuis_mp4() {
     let input = format!("{TEST_VIDEO}/MP4.mp4");
     let output = format!("{OUT}/audio_extrait_mp4.mkv");
     cleanup(&output);
-    let result = crate::modules::audio::extraire(Path::new(&input), &output);
-    assert!(result.is_ok(), "audio extraire mp4 spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "audio extraire mp4 code={:?}", status.code());
+        run_ffmpeg(|| crate::modules::audio::extraire(Path::new(&input), &output), "audio extraire mp4");
     assert_output(&output, "audio extraire mp4");
     cleanup(&output);
 }
@@ -915,4 +927,167 @@ fn test_doc_detecter_format_sortie_html() {
     setup();
     let fmt = crate::modules::doc::detecter_format_sortie("output.html");
     println!("  format sortie html: {:?}", fmt);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENAME
+// ═══════════════════════════════════════════════════════════════
+#[test]
+fn test_rename_find_replace() {
+    let cfg = crate::modules::rename::RenameConfig {
+        find: "foo".into(),
+        replace_with: "bar".into(),
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("foo_test.jpg")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "bar_test.jpg");
+    println!("  rename find/replace: OK");
+}
+
+#[test]
+fn test_rename_insert() {
+    let cfg = crate::modules::rename::RenameConfig {
+        insert_text: "PREFIX_".into(),
+        insert_pos: 0,
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("test.jpg")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "PREFIX_test.jpg");
+    println!("  rename insert: OK");
+}
+
+#[test]
+fn test_rename_delete_range() {
+    let cfg = crate::modules::rename::RenameConfig {
+        delete_enabled: true,
+        delete_from: 0,
+        delete_count: 3,
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("abctest.jpg")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "test.jpg");
+    println!("  rename delete range: OK");
+}
+
+#[test]
+fn test_rename_numbering_suffix() {
+    let cfg = crate::modules::rename::RenameConfig {
+        num_enabled: true,
+        num_start: 1,
+        num_step: 1,
+        num_padding: 2,
+        num_pos: crate::modules::rename::NumPos::Suffix,
+        num_sep: "_".into(),
+        ..Default::default()
+    };
+    let files = vec![
+        std::path::PathBuf::from("photo.jpg"),
+        std::path::PathBuf::from("photo.jpg"),
+    ];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "photo_01.jpg");
+    assert_eq!(previews[1].1, "photo_02.jpg");
+    println!("  rename numbering suffix: OK");
+}
+
+#[test]
+fn test_rename_numbering_prefix() {
+    let cfg = crate::modules::rename::RenameConfig {
+        num_enabled: true,
+        num_start: 10,
+        num_step: 2,
+        num_padding: 3,
+        num_pos: crate::modules::rename::NumPos::Prefix,
+        num_sep: " - ".into(),
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("file.mp4")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "010 - file.mp4");
+    println!("  rename numbering prefix: OK");
+}
+
+#[test]
+fn test_rename_case_upper() {
+    let cfg = crate::modules::rename::RenameConfig {
+        case_mode: crate::modules::rename::CaseMode::Upper,
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("hello world.jpg")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "HELLO WORLD.jpg");
+    println!("  rename case upper: OK");
+}
+
+#[test]
+fn test_rename_case_title() {
+    let cfg = crate::modules::rename::RenameConfig {
+        case_mode: crate::modules::rename::CaseMode::Title,
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("hello world.jpg")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "Hello World.jpg");
+    println!("  rename case title: OK");
+}
+
+#[test]
+fn test_rename_ext_lower() {
+    let cfg = crate::modules::rename::RenameConfig {
+        ext_mode: crate::modules::rename::ExtMode::Lower,
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("FILE.JPG")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "FILE.jpg");
+    println!("  rename ext lower: OK");
+}
+
+#[test]
+fn test_rename_ext_replace() {
+    let cfg = crate::modules::rename::RenameConfig {
+        ext_mode: crate::modules::rename::ExtMode::Replace,
+        ext_new: "png".into(),
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("image.jpg")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "image.png");
+    println!("  rename ext replace: OK");
+}
+
+#[test]
+fn test_rename_strip_double_spaces() {
+    let cfg = crate::modules::rename::RenameConfig {
+        strip_double_spaces: true,
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("hello  world.jpg")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "hello world.jpg");
+    println!("  rename strip double spaces: OK");
+}
+
+#[test]
+fn test_rename_strip_chars() {
+    let cfg = crate::modules::rename::RenameConfig {
+        strip_chars: "!?#".into(),
+        ..Default::default()
+    };
+    let files = vec![std::path::PathBuf::from("he!llo?wo#rld.jpg")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "helloworld.jpg");
+    println!("  rename strip chars: OK");
+}
+
+#[test]
+fn test_rename_no_change() {
+    let cfg = crate::modules::rename::RenameConfig::default();
+    let files = vec![std::path::PathBuf::from("unchanged.mp4")];
+    let previews = crate::modules::rename::preview(&files, &cfg);
+    assert_eq!(previews[0].1, "unchanged.mp4");
+    println!("  rename no change: OK");
 }

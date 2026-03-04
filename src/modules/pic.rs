@@ -3,6 +3,10 @@ use image::imageops::FilterType;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
+use zune_jpegxl::JxlSimpleEncoder;
+use zune_core::options::EncoderOptions;
+use zune_core::colorspace::ColorSpace;
+use zune_core::bit_depth::BitDepth;
 
 /// Liste des formats supportés
 #[derive(Debug, Clone, Copy)]
@@ -51,6 +55,7 @@ pub fn compresser(input: &Path, output: &str, ratio: u32) -> bool {
         match ext.to_lowercase().as_str() {
             "svg" => return compresser_svg(input, output, ratio),
             "psd" => return compresser_psd(input, output, ratio),
+            "jxl" => return compresser_jxl(input, output, ratio),
             "dng" | "cr2" | "nef" | "arw" | "orf" | "rw2" => {
                 crate::log_warn(&format!("pic::compresser format RAW non supporté pour {:?}", input));
                 return false;
@@ -68,6 +73,10 @@ pub fn compresser(input: &Path, output: &str, ratio: u32) -> bool {
                 return false;
             }
             let scaled = img.resize(w / ratio, h / ratio, FilterType::Lanczos3);
+            // Si la sortie est JXL, encoder via zune-jpegxl
+            if output.to_lowercase().ends_with(".jxl") {
+                return encoder_jxl(&scaled, output);
+            }
             let ok = scaled.save(output).is_ok();
             if !ok {
                 crate::log_error(&format!("pic::compresser échec save | {:?} -> {}", input, output));
@@ -88,6 +97,7 @@ pub fn convertir(input: &Path, output: &str) -> bool {
         match ext.to_lowercase().as_str() {
             "svg" => return convertir_svg(input, output),
             "psd" => return convertir_psd(input, output),
+            "jxl" => return convertir_jxl(input, output),
             "dng" | "cr2" | "nef" | "arw" | "orf" | "rw2" => {
                 crate::log_warn(&format!("pic::convertir format RAW non supporté pour {:?}", input));
                 return false;
@@ -98,7 +108,13 @@ pub fn convertir(input: &Path, output: &str) -> bool {
 
     // Format standard
     match image::open(input) {
-        Ok(img) => img.save(output).is_ok(),
+        Ok(img) => {
+            // Si la sortie est JXL, encoder via zune-jpegxl
+            if output.to_lowercase().ends_with(".jxl") {
+                return encoder_jxl(&img, output);
+            }
+            img.save(output).is_ok()
+        },
         Err(_) => false,
     }
 }
@@ -333,6 +349,81 @@ fn compresser_svg(input: &Path, output: &str, ratio: u32) -> bool {
     scaled.save(output).is_ok()
 }
 
+// === FONCTIONS POUR FORMAT JXL ===
+
+/// Encode une DynamicImage en JXL via zune-jpegxl (lossless)
+fn encoder_jxl(img: &image::DynamicImage, output: &str) -> bool {
+    let rgba = img.to_rgba8();
+    let (w, h) = (rgba.width(), rgba.height());
+    let pixels = rgba.as_raw();
+    let opts = EncoderOptions::new(w as usize, h as usize, ColorSpace::RGBA, BitDepth::Eight);
+    let encoder = JxlSimpleEncoder::new(pixels, opts);
+    match encoder.encode() {
+        Ok(data) => std::fs::write(output, &data).is_ok(),
+        Err(e) => {
+            crate::log_error(&format!("pic::encoder_jxl échec encodage JXL : {:?}", e));
+            false
+        }
+    }
+}
+
+/// Décodage JXL vers DynamicImage via jxl-oxide
+fn decoder_jxl(input: &Path) -> Option<image::DynamicImage> {
+    let data = match std::fs::read(input) {
+        Ok(d) => d,
+        Err(e) => {
+            crate::log_error(&format!("pic::decoder_jxl impossible de lire {:?} : {}", input, e));
+            return None;
+        }
+    };
+    let cursor = std::io::Cursor::new(data);
+    let decoder = match jxl_oxide::integration::JxlDecoder::new(cursor) {
+        Ok(d) => d,
+        Err(e) => {
+            crate::log_error(&format!("pic::decoder_jxl échec init décodeur {:?} : {}", input, e));
+            return None;
+        }
+    };
+    match image::DynamicImage::from_decoder(decoder) {
+        Ok(img) => Some(img),
+        Err(e) => {
+            crate::log_error(&format!("pic::decoder_jxl échec décodage {:?} : {}", input, e));
+            None
+        }
+    }
+}
+
+/// Conversion JXL vers format standard (PNG, JPG, etc.)
+fn convertir_jxl(input: &Path, output: &str) -> bool {
+    match decoder_jxl(input) {
+        Some(img) => {
+            if output.to_lowercase().ends_with(".jxl") {
+                return encoder_jxl(&img, output);
+            }
+            img.save(output).is_ok()
+        },
+        None => false,
+    }
+}
+
+/// Compression JXL (décode puis redimensionne)
+fn compresser_jxl(input: &Path, output: &str, ratio: u32) -> bool {
+    match decoder_jxl(input) {
+        Some(img) => {
+            let (w, h) = (img.width(), img.height());
+            if ratio == 0 {
+                crate::log_error(&format!("pic::compresser_jxl ratio=0 invalide pour {:?}", input));
+                return false;
+            }
+            let scaled = img.resize(w / ratio, h / ratio, FilterType::Lanczos3);
+            if output.to_lowercase().ends_with(".jxl") {
+                return encoder_jxl(&scaled, output);
+            }
+            scaled.save(output).is_ok()
+        },
+        None => false,
+    }
+}
 /// Conversion RAW vers format standard
 fn convertir_raw(input: &Path, output: &str) -> bool {
     let mut file = match File::open(input) {
