@@ -13,13 +13,10 @@ pub enum ImageFormat {
     Png,
     WebP,
     // Formats avec features
-    Avif,
-    Heic, // Même que AVIF
     Exr,
     Jxl,
     Tiff,
     Ico,
-    Hdr,
     // Formats avec crates externes
     Svg,
     Raw,
@@ -34,13 +31,10 @@ impl ImageFormat {
             Self::Jpg => "jpg",
             Self::Png => "png",
             Self::WebP => "webp",
-            Self::Avif => "avif",
-            Self::Heic => "heic",
             Self::Exr => "exr",
             Self::Jxl => "jxl",
             Self::Tiff => "tiff",
             Self::Ico => "ico",
-            Self::Hdr => "hdr",
             Self::Svg => "svg",
             Self::Raw => "raw",
             Self::Dng => "dng",
@@ -57,7 +51,10 @@ pub fn compresser(input: &Path, output: &str, ratio: u32) -> bool {
         match ext.to_lowercase().as_str() {
             "svg" => return compresser_svg(input, output, ratio),
             "psd" => return compresser_psd(input, output, ratio),
-            "dng" | "cr2" | "nef" | "arw" | "orf" | "rw2" => return compresser_raw(input, output, ratio),
+            "dng" | "cr2" | "nef" | "arw" | "orf" | "rw2" => {
+                crate::log_warn(&format!("pic::compresser format RAW non supporté pour {:?}", input));
+                return false;
+            },
             _ => {}
         }
     }
@@ -91,7 +88,10 @@ pub fn convertir(input: &Path, output: &str) -> bool {
         match ext.to_lowercase().as_str() {
             "svg" => return convertir_svg(input, output),
             "psd" => return convertir_psd(input, output),
-            "dng" | "cr2" | "nef" | "arw" | "orf" | "rw2" => return convertir_raw(input, output),
+            "dng" | "cr2" | "nef" | "arw" | "orf" | "rw2" => {
+                crate::log_warn(&format!("pic::convertir format RAW non supporté pour {:?}", input));
+                return false;
+            },
             _ => {}
         }
     }

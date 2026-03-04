@@ -3,6 +3,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod modules;
 #[cfg(test)]
 #[path = "test.rs"]
+#[cfg(test)]
+#[path = "testmkvwebm.rs"]
 mod test;
 use eframe::egui;
 use std::path::{Path, PathBuf};
@@ -961,7 +963,7 @@ impl eframe::App for OxyonApp {
                             ui.horizontal(|ui| {
                                 ui.label("Format :");
                                 egui::ComboBox::from_id_salt("ifmt").selected_text(&self.format_choisi).show_ui(ui, |ui| {
-                                    for f in ["AVIF","DNG","EXR","GIF","HDR","HEIC","ICO","JPG","JXL","PNG","PSD","RAW","SVG","TIFF","WebP"] {
+                                    for f in ["EXR","GIF","ICO","JPG","JXL","PNG","PSD","SVG","TIFF","WebP"] {
                                         ui.selectable_value(&mut self.format_choisi, f.into(), f);
                                     }
                                 });
@@ -977,7 +979,7 @@ impl eframe::App for OxyonApp {
                             ui.horizontal(|ui| {
                                 ui.label("Format :");
                                 egui::ComboBox::from_id_salt("ifmt_resize").selected_text(&self.format_choisi).show_ui(ui, |ui| {
-                                    for f in ["AVIF","DNG","EXR","GIF","HDR","HEIC","ICO","JPG","JXL","PNG","PSD","RAW","SVG","TIFF","WebP"] {
+                                    for f in ["EXR","GIF","ICO","JPG","JXL","PNG","PSD","SVG","TIFF","WebP"] {
                                         ui.selectable_value(&mut self.format_choisi, f.into(), f);
                                     }
                                 });

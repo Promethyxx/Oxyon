@@ -246,16 +246,6 @@ fn test_pic_compresser_psd() {
 }
 
 #[test]
-fn test_pic_compresser_avif() {
-    setup();
-    let output = format!("{OUT}/pic_avif_c.png");
-    cleanup(&output);
-    assert!(crate::modules::pic::compresser(Path::new(&format!("{TEST_PIC}/AVIF.avif")), &output, 2));
-    assert_output(&output, "compresser AVIF");
-    cleanup(&output);
-}
-
-#[test]
 fn test_pic_compresser_ico() {
     setup();
     let output = format!("{OUT}/pic_ico_c.png");
@@ -270,38 +260,8 @@ fn test_pic_compresser_tiff() {
     setup();
     let output = format!("{OUT}/pic_tiff_c.png");
     cleanup(&output);
-    assert!(crate::modules::pic::compresser(Path::new(&format!("{TEST_PIC}/sample_1920×1280.tiff")), &output, 2));
+    assert!(crate::modules::pic::compresser(Path::new(&format!("{TEST_PIC}/Tiff.tiff")), &output, 2));
     assert_output(&output, "compresser TIFF");
-    cleanup(&output);
-}
-
-#[test]
-fn test_pic_compresser_heic() {
-    setup();
-    let output = format!("{OUT}/pic_heic_c.png");
-    cleanup(&output);
-    assert!(crate::modules::pic::compresser(Path::new(&format!("{TEST_PIC}/HEIC.heic")), &output, 2));
-    assert_output(&output, "compresser HEIC");
-    cleanup(&output);
-}
-
-#[test]
-fn test_pic_compresser_dng() {
-    setup();
-    let output = format!("{OUT}/pic_dng_c.png");
-    cleanup(&output);
-    assert!(crate::modules::pic::compresser(Path::new(&format!("{TEST_PIC}/DNG.dng")), &output, 2));
-    assert_output(&output, "compresser DNG");
-    cleanup(&output);
-}
-
-#[test]
-fn test_pic_compresser_hdr() {
-    setup();
-    let output = format!("{OUT}/pic_hdr_c.png");
-    cleanup(&output);
-    assert!(crate::modules::pic::compresser(Path::new(&format!("{TEST_PIC}/HDR.hdr")), &output, 2));
-    assert_output(&output, "compresser HDR");
     cleanup(&output);
 }
 
@@ -449,7 +409,7 @@ fn test_pic_convertir_tiff_vers_jpg() {
     setup();
     let output = format!("{OUT}/pic_tiff2jpg.jpg");
     cleanup(&output);
-    assert!(crate::modules::pic::convertir(Path::new(&format!("{TEST_PIC}/sample_1920×1280.tiff")), &output));
+    assert!(crate::modules::pic::convertir(Path::new(&format!("{TEST_PIC}/Tiff.tiff")), &output));
     assert_output(&output, "TIFF→JPG");
     cleanup(&output);
 }
@@ -858,20 +818,6 @@ fn test_video_mp4_vers_mkv() {
     let status = result.unwrap().wait().unwrap();
     assert!(status.success(), "mp4→mkv code={:?}", status.code());
     assert_output(&output, "mp4→mkv");
-    cleanup(&output);
-}
-
-#[test]
-fn test_video_mkv_vers_webm() {
-    setup();
-    let input = std::path::PathBuf::from(format!("{TEST_VIDEO}/MKV.mkv"));
-    let output = format!("{OUT}/vid_mkv2webm.webm");
-    cleanup(&output);
-    let result = crate::modules::video::traiter_video(&input, &output, false, false);
-    assert!(result.is_ok(), "mkv→webm spawn échoué");
-    let status = result.unwrap().wait().unwrap();
-    assert!(status.success(), "mkv→webm code={:?}", status.code());
-    assert_output(&output, "mkv→webm");
     cleanup(&output);
 }
 
