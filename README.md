@@ -1,32 +1,55 @@
 # Oxyon & Oxyon Office
+
 ![Oxyon Logo](assets/oxyon_logo.png)
+
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE.txt)
-[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)](https://www.rust-lang.org/)
 
-## 🎯 Overview
-Oxyon is a GUI file converter, editor, scraper and tagger built with Rust.
+## Overview
 
-**Oxyon Office** is a lightweight version with only document and image conversion.
+Oxyon is a desktop multimedia toolkit built with Rust and [egui](https://github.com/emilide/egui). It handles file conversion, renaming, tagging and scraping in a single GUI application, with bundled binaries (ffmpeg, ffprobe, mkvpropedit) — no external tools to install.
 
-This is my first software project, built with AI assistance. Contributions and feedback are welcome!
+**Oxyon Office** is a lightweight variant with only document and image conversion, no bundled binaries and no API calls.
 
-## ✨ Features
-- 📄 **Document conversion** - DOCX, PDF, MD, ODT, HTML, TEX
-- 🖼️ **Image processing** - 15+ formats including AVIF, RAW, SVG, PSD
-- 🎬 **Media scraping** - Fetch metadata from TMDB
-- 🏷️ **File tagging** - Add metadata to MKV files
-- 📦 **Archive management** - 7Z, ZIP, TAR compression
-- 🎵 **Audio conversion** - MP3, FLAC, AAC, OGG
+Available in English and French.
 
-## 🚀 Quick Start
+## Features
+
+- **Archive** — 7Z, ZIP, TAR compression and extraction
+- **Audio** — MP3, FLAC, AAC, OGG conversion via ffmpeg
+- **Documents** — DOCX, PDF, Markdown, ODT, HTML, LaTeX conversion (pure Rust, no pandoc)
+- **Pictures** — 15+ formats including AVIF, JXL, RAW, SVG, PSD, WebP, EXR
+- **Video/MKV tagging** — Write metadata (title, watched status, etc.) to Matroska files
+- **Media scraping** — Fetch movie/series metadata from TMDB
+- **File renamer** — Find/replace, insert, delete, numbering, case transform, extension editing with live preview
+
+## Platforms
+
+| Build | Platforms | Content |
+|-------|-----------|---------|
+| Oxyon | Windows x64, Linux x64, Linux ARM64 | Full feature set with bundled binaries |
+| Oxyon Office | Windows x64, Linux x64, Linux ARM64 | Document & image conversion only |
+
+## Quick Start
+
 1. Download the latest release from [Releases](../../releases)
 2. Run the executable
-3. Drag & drop your files or locate it
-4. Select output format
+3. Drop your files or browse to select them
+4. Choose your output format
 5. Click "Execute"
 
-## 🗺️ Roadmap
-Features are actively tracked via [GitHub Issues](../../issues).
+## Building from source
+```bash
+# Full build
+cargo build --release
 
-## 📝 License
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE.txt](LICENSE.txt) file for details.
+# Office variant (no bundled tools, no API)
+cargo build --release --no-default-features
+
+# Optimized distribution build
+cargo build --profile dist
+```
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 — see [LICENSE.txt](LICENSE.txt) for details.
