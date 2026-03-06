@@ -1,4 +1,4 @@
-# Oxyon & Oxyon Office
+# Oxyon & Oxyon Desk
 
 ![Oxyon Logo](assets/oxyon_logo.png)
 
@@ -43,7 +43,7 @@ Available in English and French.
 # Full build
 cargo build --release
 
-# Office variant (no bundled tools, no API)
+# Desk variant (no bundled tools, no API)
 cargo build --release --no-default-features --features bundled
 
 # Optimized distribution build
