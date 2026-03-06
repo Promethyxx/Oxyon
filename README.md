@@ -28,7 +28,7 @@ Available in English and French.
 | Build | Platforms | Content |
 |-------|-----------|---------|
 | Oxyon | Windows x64, Linux x64, Linux ARM64 | Full feature set with bundled binaries |
-| Oxyon Office | Windows x64, Linux x64, Linux ARM64 | Document & image conversion only |
+| Oxyon Desk | Windows x64, Linux x64, Linux ARM64 | Document & image conversion only |
 
 ## Quick Start
 
