@@ -28,7 +28,7 @@ Available in English and French.
 | Build | Platforms | Content |
 |-------|-----------|---------|
 | Oxyon | Windows x64, Linux x64, Linux ARM64 | Full feature set with bundled binaries |
-| Oxyon Office | Windows x64, Linux x64, Linux ARM64 | Document & image conversion only |
+| Oxyon Office | Windows x64, Linux x64, Linux ARM64 | Document & image & renamer only |
 
 ## Quick Start
 
@@ -44,7 +44,7 @@ Available in English and French.
 cargo build --release
 
 # Office variant (no bundled tools, no API)
-cargo build --release --no-default-features
+cargo build --release --no-default-features --features bundled
 
 # Optimized distribution build
 cargo build --profile dist
