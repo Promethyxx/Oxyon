@@ -7,5 +7,10 @@ rustflags = [
     "-C", "link-arg=-L/var/home/promethyxx/cross-libs",
     "-C", "link-arg=-static-libgcc"
 ]
+
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
+
+[env]
+AWS_LC_SYS_NO_JITTER_ENTROPY_aarch64_unknown_linux_gnu = "1"
+CFLAGS_aarch64_unknown_linux_gnu = "--sysroot=/usr/aarch64-redhat-linux/sys-root/fc43 -I/usr/aarch64-redhat-linux/sys-root/fc43/usr/include"

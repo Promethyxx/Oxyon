@@ -44,7 +44,7 @@ strip = true
 [profile.dist]
 inherits = "release"
 opt-level = "s"
-lto = true
+lto = "thin"
 codegen-units = 1
 
 [features]
