@@ -59,6 +59,7 @@ enum ModuleType {
     #[cfg(feature = "api")]
     Video,
     Rename,
+    Tools,
     Settings,
 }
 struct OxyonApp {
@@ -99,6 +100,16 @@ struct OxyonApp {
         #[cfg(feature = "api")]
         archive_niveau: u32,
         #[cfg(feature = "api")]
+        archive_action: String,
+        #[cfg(feature = "api")]
+        archive_backup_source: String,
+        #[cfg(feature = "api")]
+        archive_backup_dest: String,
+        #[cfg(feature = "api")]
+        archive_backup_exclusions: String,
+        #[cfg(feature = "api")]
+        archive_multi_source: String,
+        #[cfg(feature = "api")]
         save_audio_format: bool,
         #[cfg(feature = "api")]
         audio_qualite: u32,
@@ -107,6 +118,7 @@ struct OxyonApp {
         #[cfg(feature = "api")]
         video_speed: u32,
         image_action: String,
+        jxl_mode: String,
         rotation_angle: u32,
         crop_x: u32,
         crop_y: u32,
@@ -139,6 +151,11 @@ struct OxyonApp {
         completed_jobs: Arc<Mutex<usize>>,
         total_jobs: Arc<Mutex<usize>>,
         job_queue: Arc<Mutex<Vec<PathBuf>>>,
+        tools_cfg: modules::tools::ToolsConfig,
+        tools_new_name: String,
+        tools_new_path: String,
+        tools_new_folder: String,
+        tools_result: String,
 }
 impl Default for OxyonApp {
     fn default() -> Self {
@@ -171,6 +188,16 @@ impl Default for OxyonApp {
                 #[cfg(feature = "api")]
                 archive_niveau: 6,
                 #[cfg(feature = "api")]
+                archive_action: "compress".into(),
+                #[cfg(feature = "api")]
+                archive_backup_source: String::new(),
+                #[cfg(feature = "api")]
+                archive_backup_dest: String::new(),
+                #[cfg(feature = "api")]
+                archive_backup_exclusions: ".git, .github, target".into(),
+                #[cfg(feature = "api")]
+                archive_multi_source: String::new(),
+                #[cfg(feature = "api")]
                 save_audio_format: false,
                 #[cfg(feature = "api")]
                 audio_qualite: 2,
@@ -179,6 +206,7 @@ impl Default for OxyonApp {
                 #[cfg(feature = "api")]
                 video_speed: 4,
                 image_action: "Convert".into(),
+                jxl_mode: "lossless".into(),
                 rotation_angle: 90,
                 crop_x: 0,
                 crop_y: 0,
@@ -211,6 +239,11 @@ impl Default for OxyonApp {
                 completed_jobs: Arc::new(Mutex::new(0)),
                 total_jobs: Arc::new(Mutex::new(0)),
                 job_queue: Arc::new(Mutex::new(Vec::new())),
+                tools_cfg: modules::tools::ToolsConfig::default(),
+                tools_new_name: String::new(),
+                tools_new_path: String::new(),
+                tools_new_folder: String::new(),
+                tools_result: String::new(),
                 rename_cfg: modules::rename::RenameConfig::default(),
                 rename_previews: Vec::new(),
                 rename_results: Vec::new(),
@@ -229,6 +262,7 @@ impl OxyonApp {
             ModuleType::Image => self.format_choisi = String::new(),
             ModuleType::Doc => self.format_choisi = String::new(),
             ModuleType::Rename => {},
+            ModuleType::Tools => {},
             #[cfg(feature = "api")]
             ModuleType::Video => self.format_choisi = String::new(),
             #[cfg(feature = "api")]
@@ -249,6 +283,7 @@ impl OxyonApp {
                     self.lang = match lang_str { "fr" => &crate::lang::FR, _ => &crate::lang::EN };
                     self.lang_id = match lang_str { "fr" => "fr", _ => "en" };
                 }
+                self.tools_cfg = modules::tools::ToolsConfig::load(&parsed);
                 if let Some(doc) = parsed.get("doc") {
                     if let Some(fmt) = doc.get("format").and_then(|f| f.as_str()) {
                         if self.module_actif == ModuleType::Doc {
@@ -275,6 +310,18 @@ impl OxyonApp {
                     }
                     if let Some(n) = arc.get("niveau").and_then(|v| v.as_integer()) {
                         self.archive_niveau = n as u32;
+                    }
+                    if let Some(s) = arc.get("backup_source").and_then(|v| v.as_str()) {
+                        self.archive_backup_source = s.to_string();
+                    }
+                    if let Some(s) = arc.get("backup_dest").and_then(|v| v.as_str()) {
+                        self.archive_backup_dest = s.to_string();
+                    }
+                    if let Some(s) = arc.get("backup_exclusions").and_then(|v| v.as_str()) {
+                        self.archive_backup_exclusions = s.to_string();
+                    }
+                    if let Some(s) = arc.get("multi_source").and_then(|v| v.as_str()) {
+                        self.archive_multi_source = s.to_string();
                     }
                 }
                 #[cfg(feature = "api")]
@@ -369,6 +416,10 @@ impl OxyonApp {
                 let archive = parsed.entry("archive").or_insert(toml::Value::Table(toml::Table::new()));
                 if let Some(arc_table) = archive.as_table_mut() {
                     arc_table.insert("niveau".to_string(), toml::Value::Integer(self.archive_niveau as i64));
+                    arc_table.insert("backup_source".to_string(), toml::Value::String(self.archive_backup_source.clone()));
+                    arc_table.insert("backup_dest".to_string(), toml::Value::String(self.archive_backup_dest.clone()));
+                    arc_table.insert("backup_exclusions".to_string(), toml::Value::String(self.archive_backup_exclusions.clone()));
+                    arc_table.insert("multi_source".to_string(), toml::Value::String(self.archive_multi_source.clone()));
                 }
             }
             if self.save_audio_format && !self.format_choisi.is_empty() && self.module_actif == ModuleType::Audio {
@@ -405,6 +456,7 @@ impl OxyonApp {
                 }
             }
         }
+        self.tools_cfg.save(&mut parsed);
         let _ = std::fs::write("config.toml", toml::to_string(&parsed).unwrap_or_default());
     }
     fn apply_theme(&self, ctx: &egui::Context) {
@@ -465,7 +517,10 @@ impl OxyonApp {
         let audio_qualite = self.audio_qualite;
         #[cfg(feature = "api")]
         let archive_niveau = self.archive_niveau;
+        #[cfg(feature = "api")]
+        let archive_action = self.archive_action.clone();
         let img_action = self.image_action.clone();
+        let jxl_mode = self.jxl_mode.clone();
         let angle = self.rotation_angle;
         let crop_x = self.crop_x;
         let crop_y = self.crop_y;
@@ -533,11 +588,47 @@ impl OxyonApp {
                 let result: Result<(), String> = match module {
                     #[cfg(feature = "api")]
                     ModuleType::Archive => {
-                        log_info(&format!("Archive: compression fmt={} niveau={} | {:?}", fmt, archive_niveau, input));
-                        if modules::archive::compresser(&input, &out_str, &fmt, archive_niveau) {
-                            Ok(())
-                        } else {
-                            Err(format!("compresser() returned false | fmt={} | file={:?}", fmt, input))
+                        match archive_action.as_str() {
+                            "extract" => {
+                                let dest = input.parent().unwrap().join(
+                                    input.file_stem().unwrap_or_default().to_string_lossy().to_string()
+                                );
+                                let dest_str = dest.to_string_lossy().to_string();
+                                log_info(&format!("Archive: extraction | {:?} -> {}", input, dest_str));
+                                if modules::archive::extraire(&input, &dest_str) {
+                                    Ok(())
+                                } else {
+                                    Err(format!("extraire() failed | file={:?}", input))
+                                }
+                            },
+                            "convert" => {
+                                log_info(&format!("Archive: convert fmt={} | {:?}", fmt, input));
+                                if modules::archive::convertir(&input, &fmt) {
+                                    Ok(())
+                                } else {
+                                    Err(format!("convertir() failed | fmt={} | file={:?}", fmt, input))
+                                }
+                            },
+                            "multi" => {
+                                // input = un sous-dossier, output = dossier.{fmt} à côté
+                                let name = input.file_name().unwrap_or_default().to_string_lossy().to_string();
+                                let multi_out = input.parent().unwrap().join(format!("{}.{}", name, fmt));
+                                let multi_out_str = multi_out.to_string_lossy().to_string();
+                                log_info(&format!("Archive multi: {} -> {}", name, multi_out_str));
+                                if modules::archive::compresser(&input, &multi_out_str, &fmt, archive_niveau) {
+                                    Ok(())
+                                } else {
+                                    Err(format!("multi compresser() failed | {} | fmt={}", name, fmt))
+                                }
+                            },
+                            _ => {
+                                log_info(&format!("Archive: compression fmt={} niveau={} | {:?}", fmt, archive_niveau, input));
+                                if modules::archive::compresser(&input, &out_str, &fmt, archive_niveau) {
+                                    Ok(())
+                                } else {
+                                    Err(format!("compresser() returned false | fmt={} | file={:?}", fmt, input))
+                                }
+                            },
                         }
                     },
                     #[cfg(feature = "api")]
@@ -713,8 +804,17 @@ impl OxyonApp {
                         log_info(&format!("Image: action={} fmt={} ratio={} | {:?}", img_action, fmt, ratio, input));
                         match img_action.as_str() {
                             "Convert" => {
-                                if modules::pic::compresser(&input, &out_str, ratio) { Ok(()) }
-                                else { Err(format!("pic::compresser failed | fmt={} ratio={} | {:?}", fmt, ratio, input)) }
+                                // Si format JXL, dispatcher selon jxl_mode
+                                if fmt.to_uppercase() == "JXL" {
+                                    match jxl_mode.as_str() {
+                                        "folder" => modules::pic::convertir_jxl_dossier(&input),
+                                        "pivot" => modules::pic::convertir_jxl_pivot(&input),
+                                        _ => modules::pic::convertir_jxl_lossless(&input),
+                                    }
+                                } else {
+                                    if modules::pic::compresser(&input, &out_str, ratio) { Ok(()) }
+                                    else { Err(format!("pic::compresser failed | fmt={} ratio={} | {:?}", fmt, ratio, input)) }
+                                }
                             },
                             "resize" => {
                                 log_info(&format!("Image resize: w={} h={} kb={}", resize_w, resize_h, resize_kb));
@@ -840,6 +940,7 @@ impl eframe::App for OxyonApp {
                 mods.push((ModuleType::Doc, "📄 Doc"));
                 mods.push((ModuleType::Image, self.lang.tab_image));
                 mods.push((ModuleType::Rename, self.lang.tab_rename));
+                mods.push((ModuleType::Tools, "🛠 Tools"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Scrapper, "🔍 Scrapper"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Tag, "🏷️ Tag"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Video, self.lang.tab_video));
@@ -855,18 +956,154 @@ impl eframe::App for OxyonApp {
                 #[cfg(feature = "api")]
                 ModuleType::Archive => {
                     ui.horizontal(|ui| {
-                        ui.label(self.lang.format_label);
-                        egui::ComboBox::from_id_salt("arfmt").selected_text(&self.format_choisi).show_ui(ui, |ui| {
-                            for f in ["7z", "tar", "zip"] {
-                                ui.selectable_value(&mut self.format_choisi, f.into(), f);
+                        ui.label(self.lang.action_label);
+                        egui::ComboBox::from_id_salt("archive_action").selected_text(
+                            match self.archive_action.as_str() {
+                                "compress" => "Compress",
+                                "extract" => "Extract",
+                                "convert" => "Convert",
+                                "backup" => "Backup",
+                                "multi" => "Multi-compress",
+                                _ => "Compress",
                             }
+                        ).show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.archive_action, "compress".into(), "Compress");
+                            ui.selectable_value(&mut self.archive_action, "extract".into(), "Extract");
+                            ui.selectable_value(&mut self.archive_action, "convert".into(), "Convert");
+                            ui.selectable_value(&mut self.archive_action, "backup".into(), "Backup");
+                            ui.selectable_value(&mut self.archive_action, "multi".into(), "Multi-compress");
                         });
                     });
-                    if ui.add(egui::Slider::new(&mut self.archive_niveau, 1..=9).text(self.lang.compression_slider)).changed() {
-                        self.save_config();
-                    }
-                    if ui.checkbox(&mut self.save_archive_format, self.lang.save_format).changed() {
-                        self.save_config();
+                    ui.separator();
+                    match self.archive_action.as_str() {
+                        "compress" => {
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.format_label);
+                                egui::ComboBox::from_id_salt("arfmt").selected_text(&self.format_choisi).show_ui(ui, |ui| {
+                                    for f in ["7z", "tar", "zip"] {
+                                        ui.selectable_value(&mut self.format_choisi, f.into(), f);
+                                    }
+                                });
+                            });
+                            if ui.add(egui::Slider::new(&mut self.archive_niveau, 1..=9).text(self.lang.compression_slider)).changed() {
+                                self.save_config();
+                            }
+                            if ui.checkbox(&mut self.save_archive_format, self.lang.save_format).changed() {
+                                self.save_config();
+                            }
+                        },
+                        "extract" => {
+                            ui.label("Drop archive files above, they will be extracted next to the original.");
+                        },
+                        "convert" => {
+                            ui.label("Drop archive files above to convert to another format.");
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.format_label);
+                                egui::ComboBox::from_id_salt("arfmt_conv").selected_text(&self.format_choisi).show_ui(ui, |ui| {
+                                    for f in ["7z", "tar", "zip"] {
+                                        ui.selectable_value(&mut self.format_choisi, f.into(), f);
+                                    }
+                                });
+                            });
+                        },
+                        "backup" => {
+                            ui.horizontal(|ui| {
+                                ui.label("Source:");
+                                ui.add(egui::TextEdit::singleline(&mut self.archive_backup_source).desired_width(250.0));
+                                if ui.button("📂").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                        self.archive_backup_source = path.to_string_lossy().to_string();
+                                        self.save_config();
+                                    }
+                                }
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label("Destination:");
+                                ui.add(egui::TextEdit::singleline(&mut self.archive_backup_dest).desired_width(250.0));
+                                if ui.button("📂").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                        self.archive_backup_dest = path.to_string_lossy().to_string();
+                                        self.save_config();
+                                    }
+                                }
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label("Exclusions:");
+                                if ui.add(egui::TextEdit::singleline(&mut self.archive_backup_exclusions).desired_width(250.0)).lost_focus() {
+                                    self.save_config();
+                                }
+                            });
+                            ui.small("Comma-separated folder names to exclude (e.g. .git, target, node_modules)");
+                            ui.add_space(5.0);
+                            let can_backup = !self.archive_backup_source.is_empty() && !self.archive_backup_dest.is_empty();
+                            if ui.add_enabled(can_backup, egui::Button::new("▶ Run Backup")).clicked() {
+                                let exclusions: Vec<&str> = self.archive_backup_exclusions
+                                    .split(',')
+                                    .map(|s| s.trim())
+                                    .filter(|s| !s.is_empty())
+                                    .collect();
+                                let source = std::path::Path::new(&self.archive_backup_source);
+                                match modules::archive::backup_zip(source, &self.archive_backup_dest, &exclusions) {
+                                    Ok(path) => {
+                                        *self.status.lock().unwrap() = format!("✅ Backup: {}", path);
+                                    }
+                                    Err(e) => {
+                                        *self.status.lock().unwrap() = format!("⚠️ Backup: {}", e);
+                                    }
+                                }
+                            }
+                        },
+                        "multi" => {
+                            ui.horizontal(|ui| {
+                                ui.label("Parent folder:");
+                                ui.add(egui::TextEdit::singleline(&mut self.archive_multi_source).desired_width(250.0));
+                                if ui.button("📂").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                        self.archive_multi_source = path.to_string_lossy().to_string();
+                                        self.save_config();
+                                    }
+                                }
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label(self.lang.format_label);
+                                egui::ComboBox::from_id_salt("arfmt_multi").selected_text(&self.format_choisi).show_ui(ui, |ui| {
+                                    for f in ["7z", "tar", "zip"] {
+                                        ui.selectable_value(&mut self.format_choisi, f.into(), f);
+                                    }
+                                });
+                            });
+                            if ui.add(egui::Slider::new(&mut self.archive_niveau, 1..=9).text(self.lang.compression_slider)).changed() {
+                                self.save_config();
+                            }
+                            ui.small("Each direct subfolder will be compressed as an individual archive.");
+                            ui.add_space(5.0);
+                            let can_multi = !self.archive_multi_source.is_empty();
+                            if ui.add_enabled(can_multi, egui::Button::new("▶ Compress All Subfolders")).clicked() {
+                                let parent = std::path::Path::new(&self.archive_multi_source);
+                                match std::fs::read_dir(parent) {
+                                    Ok(entries) => {
+                                        self.current_files = entries
+                                            .filter_map(|e| e.ok())
+                                            .map(|e| e.path())
+                                            .filter(|p| p.is_dir())
+                                            .collect();
+                                        if self.current_files.is_empty() {
+                                            *self.status.lock().unwrap() = "No subfolders found.".into();
+                                        } else {
+                                            crate::log_info(&format!(
+                                                "Archive multi: {} subfolders found in {:?}",
+                                                self.current_files.len(), parent
+                                            ));
+                                            self.lancer_batch(ctx.clone());
+                                        }
+                                    }
+                                    Err(e) => {
+                                        *self.status.lock().unwrap() = format!("⚠️ {}", e);
+                                    }
+                                }
+                            }
+                        },
+                        _ => {}
                     }
                 },
                 ModuleType::Doc => {
@@ -1047,6 +1284,29 @@ impl eframe::App for OxyonApp {
                             }
                             if ui.add(egui::Slider::new(&mut self.ratio_img, 1..=10).text(self.lang.img_quality_slider)).changed() {
                                 self.save_config();
+                            }
+                            // Sous-options JXL
+                            if self.format_choisi.to_uppercase() == "JXL" {
+                                ui.separator();
+                                ui.horizontal(|ui| {
+                                    ui.label("JXL mode:");
+                                    egui::ComboBox::from_id_salt("jxl_mode").selected_text(
+                                        match self.jxl_mode.as_str() {
+                                            "folder" => "Folder (separate dir)",
+                                            "pivot" => "Pivot (via PNG)",
+                                            _ => "Lossless (in-place)",
+                                        }
+                                    ).show_ui(ui, |ui| {
+                                        ui.selectable_value(&mut self.jxl_mode, "lossless".into(), "Lossless (in-place)");
+                                        ui.selectable_value(&mut self.jxl_mode, "folder".into(), "Folder (separate dir)");
+                                        ui.selectable_value(&mut self.jxl_mode, "pivot".into(), "Pivot (via PNG)");
+                                    });
+                                });
+                                match self.jxl_mode.as_str() {
+                                    "folder" => { ui.small("Output in a \"{folder} jxl\" directory next to the source folder."); },
+                                    "pivot" => { ui.small("Re-decode via PNG pivot for problematic files, output: {name}_pivot.jxl."); },
+                                    _ => { ui.small("Lossless JXL next to the original, skips if .jxl already exists."); },
+                                }
                             }
                         },
                         "resize" => {
@@ -1558,6 +1818,145 @@ impl eframe::App for OxyonApp {
                         }
                     });
                 },
+                ModuleType::Tools => {
+                    ui.vertical(|ui| {
+                        ui.heading("🛠 Tools");
+                        ui.separator();
+
+                        // ── Dossier de sortie ──
+                        ui.horizontal(|ui| {
+                            ui.label("Output folder:");
+                            ui.add(egui::TextEdit::singleline(&mut self.tools_cfg.list_dir).desired_width(300.0));
+                            if ui.button("📂").clicked() {
+                                if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                    self.tools_cfg.list_dir = path.to_string_lossy().to_string();
+                                    self.save_config();
+                                }
+                            }
+                        });
+
+                        ui.separator();
+
+                        // ── File Sources ──
+                        ui.collapsing("📁 File Sources (files listing)", |ui| {
+                            // Tableau existant
+                            let mut to_remove: Option<String> = None;
+                            if !self.tools_cfg.file_sources.is_empty() {
+                                egui::ScrollArea::vertical().max_height(150.0).id_salt("tools_files_scroll").show(ui, |ui| {
+                                    egui::Grid::new("tools_files_grid").striped(true).show(ui, |ui| {
+                                        ui.strong("Name");
+                                        ui.strong("Path");
+                                        ui.label("");
+                                        ui.end_row();
+                                        for (name, path) in &self.tools_cfg.file_sources {
+                                            ui.label(name);
+                                            ui.label(path);
+                                            if ui.small_button("🗑").clicked() {
+                                                to_remove = Some(name.clone());
+                                            }
+                                            ui.end_row();
+                                        }
+                                    });
+                                });
+                            }
+                            if let Some(key) = to_remove {
+                                self.tools_cfg.file_sources.remove(&key);
+                                self.save_config();
+                            }
+                            // Ajouter
+                            ui.horizontal(|ui| {
+                                ui.label("Name:");
+                                ui.add(egui::TextEdit::singleline(&mut self.tools_new_name).desired_width(100.0));
+                                ui.label("Path:");
+                                ui.add(egui::TextEdit::singleline(&mut self.tools_new_path).desired_width(200.0));
+                                if ui.button("📂").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                        self.tools_new_path = path.to_string_lossy().to_string();
+                                    }
+                                }
+                                if ui.button("➕").clicked() && !self.tools_new_name.is_empty() && !self.tools_new_path.is_empty() {
+                                    self.tools_cfg.file_sources.insert(
+                                        self.tools_new_name.clone(),
+                                        self.tools_new_path.clone(),
+                                    );
+                                    self.tools_new_name.clear();
+                                    self.tools_new_path.clear();
+                                    self.save_config();
+                                }
+                            });
+                        });
+
+                        // ── Folder Sources ──
+                        ui.collapsing("📂 Folder Sources (directory listing)", |ui| {
+                            let mut to_remove_idx: Option<usize> = None;
+                            if !self.tools_cfg.folder_sources.is_empty() {
+                                egui::ScrollArea::vertical().max_height(120.0).id_salt("tools_folders_scroll").show(ui, |ui| {
+                                    for (i, src) in self.tools_cfg.folder_sources.iter().enumerate() {
+                                        ui.horizontal(|ui| {
+                                            ui.label(src);
+                                            if ui.small_button("🗑").clicked() {
+                                                to_remove_idx = Some(i);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                            if let Some(i) = to_remove_idx {
+                                self.tools_cfg.folder_sources.remove(i);
+                                self.save_config();
+                            }
+                            ui.horizontal(|ui| {
+                                ui.label("Path:");
+                                ui.add(egui::TextEdit::singleline(&mut self.tools_new_folder).desired_width(250.0));
+                                if ui.button("📂").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                        self.tools_new_folder = path.to_string_lossy().to_string();
+                                    }
+                                }
+                                if ui.button("➕").clicked() && !self.tools_new_folder.is_empty() {
+                                    self.tools_cfg.folder_sources.push(self.tools_new_folder.clone());
+                                    self.tools_new_folder.clear();
+                                    self.save_config();
+                                }
+                            });
+                        });
+
+                        ui.separator();
+
+                        // ── Boutons d'exécution ──
+                        let can_run = !self.tools_cfg.list_dir.is_empty() && !self.tools_cfg.is_empty();
+                        ui.horizontal(|ui| {
+                            ui.set_enabled(can_run);
+                            if ui.button("📋 List Files").clicked() {
+                                let (ok, errs) = modules::tools::lister_fichiers(&self.tools_cfg);
+                                if errs.is_empty() {
+                                    self.tools_result = format!("✅ {} sources processed → {}", ok, self.tools_cfg.list_dir);
+                                } else {
+                                    self.tools_result = format!("✅ {} ok | ⚠️ {}\n{}", ok, errs.len(), errs.join("\n"));
+                                }
+                                crate::log_info(&format!("Tools lister_fichiers: ok={} err={}", ok, errs.len()));
+                            }
+                            if ui.button("📂 List Folders").clicked() {
+                                let (ok, errs) = modules::tools::lister_dossiers(&self.tools_cfg);
+                                if errs.is_empty() {
+                                    self.tools_result = format!("✅ {} sources → multimedia.txt in {}", ok, self.tools_cfg.list_dir);
+                                } else {
+                                    self.tools_result = format!("✅ {} ok | ⚠️ {}\n{}", ok, errs.len(), errs.join("\n"));
+                                }
+                                crate::log_info(&format!("Tools lister_dossiers: ok={} err={}", ok, errs.len()));
+                            }
+                        });
+                        if !can_run {
+                            ui.colored_label(egui::Color32::YELLOW, "Configure output folder and at least one source above.");
+                        }
+
+                        // ── Résultat ──
+                        if !self.tools_result.is_empty() {
+                            ui.separator();
+                            ui.label(&self.tools_result);
+                        }
+                    });
+                },
                 ModuleType::Settings => {
                     ui.vertical(|ui| {
                         ui.heading(self.lang.settings_heading);
@@ -1598,7 +1997,7 @@ impl eframe::App for OxyonApp {
                     });
                 },
             }
-            let mut hide_exec = self.module_actif == ModuleType::Settings || self.module_actif == ModuleType::Rename;
+            let mut hide_exec = self.module_actif == ModuleType::Settings || self.module_actif == ModuleType::Rename || self.module_actif == ModuleType::Tools;
             #[cfg(feature = "api")]
             { hide_exec = hide_exec || self.module_actif == ModuleType::Scrapper || self.module_actif == ModuleType::Tag; }
             if !self.current_files.is_empty() && !hide_exec {

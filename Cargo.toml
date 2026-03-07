@@ -1,6 +1,6 @@
 [package]
 name = "oxyon"
-version = "1.6.0"
+version = "1.7.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 
@@ -29,8 +29,8 @@ tar = "0.4"
 toml = "1.0.3"
 which = "8.0.0"
 zip = { version = "8.1", default-features = false, features = ["deflate"] }
-zune-core = "0.4"
-zune-jpegxl = "0.4"
+zune-core = "0.5"
+zune-jpegxl = "0.5"
 
 [build-dependencies]
 winres = "0.1"

@@ -3486,7 +3486,7 @@ dependencies = [
 
 [[package]]
 name = "oxyon"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "chrono",
  "dotenvy",
@@ -3509,11 +3509,11 @@ dependencies = [
  "serde_json",
  "sevenz-rust2",
  "tar",
- "toml 1.0.4+spec-1.1.0",
+ "toml 1.0.6+spec-1.1.0",
  "which",
  "winres",
  "zip",
- "zune-core 0.4.12",
+ "zune-core 0.5.1",
  "zune-jpegxl",
 ]
 
@@ -5143,9 +5143,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.0.4+spec-1.1.0"
+version = "1.0.6+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c94c3321114413476740df133f0d8862c61d87c8d26f04c6841e033c8c80db47"
+checksum = "399b1124a3c9e16766831c6bba21e50192572cdd98706ea114f9502509686ffc"
 dependencies = [
  "indexmap",
  "serde_core",
@@ -6969,11 +6969,11 @@ dependencies = [
 
 [[package]]
 name = "zune-jpegxl"
-version = "0.4.0"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71ffee484384b15f99ed4768bfdb3fa186d63e1f8c3aafba1d6d141a7b9e3674"
+checksum = "cba11ecd07cc23351500e840ae03841b7e4997923ec8e4832ee3ae199ea0b6b4"
 dependencies = [
- "zune-core 0.4.12",
+ "zune-core 0.5.1",
 ]
 
 [[package]]

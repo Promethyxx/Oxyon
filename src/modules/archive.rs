@@ -181,6 +181,181 @@ pub fn extraire(input: &Path, destination: &str) -> bool {
     result.is_ok()
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  ZIP avec exclusions (pour backup)
+// ════════════════════════════════════════════════════════════════════════
+
+fn doit_exclure(relative: &str, exclusions: &[&str]) -> bool {
+    let normalized = relative.replace('\\', "/");
+    for excl in exclusions {
+        let pat = excl.trim_start_matches('/').trim_end_matches('/');
+        // Match un segment complet du chemin
+        if normalized == pat
+            || normalized.starts_with(&format!("{}/", pat))
+            || normalized.contains(&format!("/{}/", pat))
+            || normalized.ends_with(&format!("/{}", pat))
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn compresser_zip_exclusions(
+    input: &Path,
+    output: &str,
+    niveau: u32,
+    exclusions: &[&str],
+) -> Result<(), String> {
+    let file = fs::File::create(output)
+        .map_err(|e| format!("Erreur creation zip : {}", e))?;
+    let mut zip_writer = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .compression_level(Some(niveau as i64));
+
+    if input.is_dir() {
+        ajouter_dossier_zip_exclusions(&mut zip_writer, input, input, options, exclusions)?;
+    } else {
+        let name = input.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if !doit_exclure(&name, exclusions) {
+            zip_writer.start_file(&name, options)
+                .map_err(|e| format!("Erreur zip start_file : {}", e))?;
+            let data = fs::read(input).map_err(|e| format!("Erreur lecture : {}", e))?;
+            zip_writer.write_all(&data).map_err(|e| format!("Erreur ecriture zip : {}", e))?;
+        }
+    }
+
+    zip_writer.finish().map_err(|e| format!("Erreur finalisation zip : {}", e))?;
+    Ok(())
+}
+
+fn ajouter_dossier_zip_exclusions<W: Write + Seek>(
+    zip_writer: &mut zip::ZipWriter<W>,
+    base: &Path,
+    current: &Path,
+    options: zip::write::SimpleFileOptions,
+    exclusions: &[&str],
+) -> Result<(), String> {
+    for entry in fs::read_dir(current).map_err(|e| format!("Erreur lecture dossier : {}", e))? {
+        let entry = entry.map_err(|e| format!("Erreur entree : {}", e))?;
+        let path = entry.path();
+        let relative = path.strip_prefix(base).unwrap_or(&path);
+        let name = relative.to_string_lossy().replace('\\', "/");
+
+        if doit_exclure(&name, exclusions) {
+            continue;
+        }
+
+        if path.is_dir() {
+            zip_writer.add_directory(&format!("{}/", name), options)
+                .map_err(|e| format!("Erreur zip add_directory : {}", e))?;
+            ajouter_dossier_zip_exclusions(zip_writer, base, &path, options, exclusions)?;
+        } else {
+            zip_writer.start_file(&name, options)
+                .map_err(|e| format!("Erreur zip start_file : {}", e))?;
+            let data = fs::read(&path).map_err(|e| format!("Erreur lecture : {}", e))?;
+            zip_writer.write_all(&data).map_err(|e| format!("Erreur ecriture : {}", e))?;
+        }
+    }
+    Ok(())
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  BACKUP — archive datée avec exclusions (remplace oxyz.ps1)
+// ════════════════════════════════════════════════════════════════════════
+
+/// Crée un zip daté (Backup_YYYYMMDD.zip) du dossier source dans dest_dir.
+/// Exclut .git, .github, target par défaut.
+/// Retourne le chemin du zip créé ou une erreur.
+pub fn backup_zip(source: &Path, dest_dir: &str, exclusions: &[&str]) -> Result<String, String> {
+    if !source.exists() {
+        return Err(format!("Source introuvable : {}", source.display()));
+    }
+
+    let dest = Path::new(dest_dir);
+    if !dest.exists() {
+        fs::create_dir_all(dest).map_err(|e| format!("Impossible de créer {} : {}", dest_dir, e))?;
+    }
+
+    let today = chrono::Local::now().format("%Y%m%d").to_string();
+    let zip_path = dest.join(format!("Backup_{}.zip", today));
+    let zip_str = zip_path.to_string_lossy().to_string();
+
+    crate::log_info(&format!(
+        "archive::backup_zip | {:?} -> {} | exclusions={:?}",
+        source, zip_str, exclusions
+    ));
+
+    compresser_zip_exclusions(source, &zip_str, 9, exclusions)?;
+
+    let taille = fs::metadata(&zip_path).map(|m| m.len()).unwrap_or(0);
+    crate::log_info(&format!(
+        "archive::backup_zip OK | {} | {:.1} Mo",
+        zip_str,
+        taille as f64 / 1_048_576.0
+    ));
+
+    Ok(zip_str)
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  MULTI — compresse chaque sous-dossier en archive (remplace oxyzm.ps1)
+// ════════════════════════════════════════════════════════════════════════
+
+/// Pour chaque sous-dossier direct de `parent`, crée une archive au format donné
+/// dans le même répertoire parent. Retourne (réussites, erreurs).
+pub fn compresser_multi(parent: &Path, format_archive: &str, niveau: u32) -> (usize, Vec<String>) {
+    let mut ok = 0usize;
+    let mut erreurs: Vec<String> = Vec::new();
+
+    crate::log_info(&format!(
+        "archive::compresser_multi | {:?} | format={} | niveau={}",
+        parent, format_archive, niveau
+    ));
+
+    let entries = match fs::read_dir(parent) {
+        Ok(e) => e,
+        Err(e) => {
+            erreurs.push(format!("Impossible de lire {} : {}", parent.display(), e));
+            return (ok, erreurs);
+        }
+    };
+
+    for entry in entries {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                erreurs.push(format!("Erreur entrée : {}", e));
+                continue;
+            }
+        };
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let output = parent.join(format!("{}.{}", name, format_archive));
+        let output_str = output.to_string_lossy().to_string();
+
+        crate::log_info(&format!("archive::compresser_multi | {} -> {}", name, output_str));
+
+        if compresser(&path, &output_str, format_archive, niveau) {
+            ok += 1;
+        } else {
+            erreurs.push(format!("{} → compression échouée", name));
+        }
+    }
+
+    crate::log_info(&format!(
+        "archive::compresser_multi DONE | ok={} err={}",
+        ok, erreurs.len()
+    ));
+
+    (ok, erreurs)
+}
+
 /// Conversion : Change le format via dossier temporaire
 pub fn convertir(input: &Path, format_cible: &str) -> bool {
     let temp_dir = std::env::temp_dir().join("oxyon_archive_conv");
