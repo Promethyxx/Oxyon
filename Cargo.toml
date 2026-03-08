@@ -9,7 +9,7 @@ name = "oxyon"
 path = "src/main.rs"
 
 [[bin]]
-name = "oxyon-cli"
+name = "oxycli"
 path = "src/main_cli.rs"
 
 [dependencies]
