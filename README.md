@@ -44,9 +44,9 @@ It's built for professional use where privacy and autonomy matter.
 | | Oxyon | Oxyon Desk |
 |---|---|---|
 | Purpose | Swiss army knife for multimedia | Offline document & image processing |
-| Bundled binaries | ffmpeg, ffprobe, mkvpropedit | None |
-| API keys required | TMDB and Fanart (for scraping only) | None |
-| Internet access | Only if using the scraper | Never |
+| Bundled binaries | ffmpeg, ffprobe, mkvpropedit | ❌ |
+| API keys required | ✅ FanArt, TMDB (for scraping only) | ❌ |
+| Internet access | ✅ (for scraping only) | ❌ |
 | Portable | ✅ | ✅ |
 
 ## Platforms
