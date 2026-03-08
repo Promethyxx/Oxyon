@@ -41,9 +41,9 @@ It's built for professional use where privacy and autonomy matter.
 
 ## Key differences
 
-| | | Oxyon | Oxyon Desk |
+| | Key differences | Oxyon | Oxyon Desk |
 |---|:---:|:---:|:---:|
-| Purpose | Key differences | Swiss army knife for multimedia | Offline document & image processing |
+| Purpose | - | Swiss army knife for multimedia | Offline document & image processing |
 | Bundled binaries |  ffmpeg, ffprobe, mkvpropedit | ✅ | ❌ |
 | API keys required | FanArt, TMDB (for scraping only) | ✅ | ❌ |
 | Internet access | for scraping only | ✅ | ❌ |
