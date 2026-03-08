@@ -1,8 +1,9 @@
 [package]
-name = "Oxyon"
-version = "2.0.1"
+name = "oxyon"
+version = "1.7.1"
 edition = "2024"
 license = "GPL-3.0-or-later"
+default-run = "Oxyon"
 
 [[bin]]
 name = "Oxyon"
