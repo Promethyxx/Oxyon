@@ -42,11 +42,11 @@ It's built for professional use where privacy and autonomy matter.
 ## Key differences
 
 | | Oxyon | Oxyon Desk |
-|---|:---:|:---:|
+|---|:---:|:---:|:---:|
 | Purpose | Swiss army knife for multimedia | Offline document & image processing |
-| Bundled binaries | ✅ ffmpeg, ffprobe, mkvpropedit | ❌ |
-| API keys required | ✅ FanArt, TMDB (for scraping only) | ❌ |
-| Internet access | ✅ (for scraping only) | ❌ |
+| Bundled binaries |  ffmpeg, ffprobe, mkvpropedit | ✅ | ❌ |
+| API keys required | FanArt, TMDB (for scraping only) | ✅ | ❌ |
+| Internet access | for scraping only | ✅ | ❌ |
 | Portable | ✅ | ✅ |
 
 ## Platforms
