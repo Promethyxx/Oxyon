@@ -1,4 +1,4 @@
-# Oxyon & Oxyon Desk
+# Oxyon & Oxyon Desk & Oxy
 
 ![Oxyon Logo](https://raw.githubusercontent.com/Promethyxx/Oxyon/main/assets/Oxyon_logo.png)
 
@@ -30,7 +30,7 @@ It's built for professional use where privacy and autonomy matter.
 
 ## What is Oxy?
 
-Oxy (`oxycli`) is the command-line version of Oxyon, designed for system administrators, automation, and task scheduling.
+Oxy (`oxy`) is the command-line version of Oxyon, designed for system administrators, automation, and task scheduling.
 
 It exposes the same modules as the GUI but through a terminal interface — ideal for cron jobs (Linux/macOS) or Windows Task Scheduler.
 Same bundled binaries, same processing logic, no GUI required.
@@ -85,13 +85,13 @@ i will post sometimes.
 ### CLI Quick Start
 
 ```bash
-oxycli pic convert photo.png --to webp
-oxycli doc convert rapport.md --to pdf
-oxycli tag marquer-vu film.mkv --lang fr
-oxycli rename *.mp4 --find "S01" --replace "Saison 1" --dry-run
-oxycli archive compress ./dossier --to zip
-oxycli tools list-files --output ./listes --source "Films=/media/films"
-oxycli --help
+oxy pic convert photo.png --to webp
+oxy doc convert rapport.md --to pdf
+oxy tag marquer-vu film.mkv --lang fr
+oxy rename *.mp4 --find "S01" --replace "Saison 1" --dry-run
+oxy archive compress ./dossier --to zip
+oxy tools list-files --output ./listes --source "Films=/media/films"
+oxy --help
 ```
 
 ## Building from source
@@ -101,7 +101,7 @@ oxycli --help
 cargo build --release
 
 # CLI only
-cargo build --release --bin oxycli
+cargo build --release --bin oxy
 
 # Desk variant (GUI only, no bundled binaries)
 cargo build --release --no-default-features --features bundled
