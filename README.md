@@ -28,9 +28,9 @@ All offline, with no external binaries, no API calls, and no data leaving your m
 
 It's built for professional use where privacy and autonomy matter.
 
-## What is Oxyon CLI?
+## What is Oxy?
 
-Oxyon CLI (`oxycli`) is the command-line version of Oxyon, designed for system administrators, automation, and task scheduling.
+Oxy (`oxycli`) is the command-line version of Oxyon, designed for system administrators, automation, and task scheduling.
 
 It exposes the same modules as the GUI but through a terminal interface — ideal for cron jobs (Linux/macOS) or Windows Task Scheduler.
 Same bundled binaries, same processing logic, no GUI required.
@@ -39,7 +39,7 @@ See [README_CLI.md](README_CLI.md) for full documentation and usage examples.
 
 ## Modules
 
-| Module | Oxyon | Oxyon Desk | Oxyon CLI |
+| Module | Oxyon | Oxyon Desk | Oxy |
 |--------|:-----:|:----------:|:---------:|
 | Archives (7Z, ZIP, TAR) | ✅ | ✅ | ✅ |
 | Audio (MP3, FLAC, AAC, OGG) | ✅ | ❌ | ❌ |
@@ -53,7 +53,7 @@ See [README_CLI.md](README_CLI.md) for full documentation and usage examples.
 
 ## Key differences
 
-| | Key differences | Oxyon | Oxyon Desk | Oxyon CLI |
+| | Key differences | Oxyon | Oxyon Desk | Oxy |
 |---|:---:|:---:|:---:|:---:|
 | Purpose | | Swiss army knife for multimedia | Offline document & image processing | Automation & task scheduling |
 | Interface | | GUI | GUI | Terminal |
@@ -68,7 +68,7 @@ See [README_CLI.md](README_CLI.md) for full documentation and usage examples.
 |---|:---:|:---:|:---:|:---:|
 | Oxyon | ✅ | ✅ | ✅ | ✅ |
 | Oxyon Desk | ✅ | ✅ | ✅ | ✅ |
-| Oxyon CLI | ✅ | ✅ | ✅ | ✅ |
+| Oxy | ✅ | ✅ | ✅ | ✅ |
 
 The source code is Mac ARM ready.
 I don't have any, so I need to compile this with Github CI, which cost a lot of ratio compare to other platforms.

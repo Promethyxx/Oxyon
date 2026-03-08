@@ -1,15 +1,15 @@
 [package]
-name = "oxyon"
+name = "Oxyon"
 version = "2.0.1"
 edition = "2024"
 license = "GPL-3.0-or-later"
 
 [[bin]]
-name = "oxyon"
+name = "Oxyon"
 path = "src/main.rs"
 
 [[bin]]
-name = "oxycli"
+name = "oxy"
 path = "src/main_cli.rs"
 
 [dependencies]
