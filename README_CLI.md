@@ -1,4 +1,4 @@
-# Oxyon CLI
+# oxy
 
 Command-line interface for Oxyon — multimedia processing toolbox.
 

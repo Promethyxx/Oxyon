@@ -25,6 +25,7 @@ pub enum Command {
         action: DocAction,
     },
     /// MKV tagging (mark watched, edit tags, inject NFO, attach images, reset)
+    #[cfg(feature = "api")]
     Tag {
         #[command(subcommand)]
         action: TagAction,
@@ -293,6 +294,7 @@ pub enum DocAction {
 
 // ─── TAG ────────────────────────────────────────────────────────
 
+#[cfg(feature = "api")]
 #[derive(clap::Subcommand)]
 pub enum TagAction {
     /// Mark MKV file(s) as watched (cumulative playcount)

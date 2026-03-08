@@ -1,4 +1,4 @@
-# Oxyon & Oxyon Desk & Oxy
+# Oxyon & Oxydesk & Oxy
 
 ![Oxyon Logo](https://raw.githubusercontent.com/Promethyxx/Oxyon/main/assets/Oxyon_logo.png)
 
@@ -16,14 +16,14 @@ All in one place, with bundled binaries (ffmpeg, ffprobe, mkvpropedit) so there'
 
 Available in English and French.
 
-## What is Oxyon Desk?
+## What is Oxydesk?
 
-Oxyon Desk was born from a real need.
+Oxydesk was born from a real need.
 
 In a professional environment where tools like Adobe Acrobat Pro aren't available,
 the only option is often to upload sensitive documents to third-party websites (iLovePDF, iLoveIMG) — which never feels right.
 
-Oxyon Desk brings those capabilities locally: document conversion, image processing, archiving, renaming.
+Oxydesk brings those capabilities locally: document conversion, image processing, archiving, renaming.
 All offline, with no external binaries, no API calls, and no data leaving your machine.
 
 It's built for professional use where privacy and autonomy matter.
@@ -39,7 +39,7 @@ See [README_CLI.md](README_CLI.md) for full documentation and usage examples.
 
 ## Modules
 
-| Module | Oxyon | Oxyon Desk | Oxy |
+| Module | Oxyon | Oxydesk | Oxy |
 |--------|:-----:|:----------:|:---------:|
 | Archives (7Z, ZIP, TAR) | ✅ | ✅ | ✅ |
 | Audio (MP3, FLAC, AAC, OGG) | ✅ | ❌ | ❌ |
@@ -53,7 +53,7 @@ See [README_CLI.md](README_CLI.md) for full documentation and usage examples.
 
 ## Key differences
 
-| | Key differences | Oxyon | Oxyon Desk | Oxy |
+| | Key differences | Oxyon | Oxydesk | Oxy |
 |---|:---:|:---:|:---:|:---:|
 | Purpose | | Swiss army knife for multimedia | Offline document & image processing | Automation & task scheduling |
 | Interface | | GUI | GUI | Terminal |
@@ -67,7 +67,7 @@ See [README_CLI.md](README_CLI.md) for full documentation and usage examples.
 | | Linux ARM64 | Linux x64 | Mac ARM64 | Windows x64 |
 |---|:---:|:---:|:---:|:---:|
 | Oxyon | ✅ | ✅ | ✅ | ✅ |
-| Oxyon Desk | ✅ | ✅ | ✅ | ✅ |
+| Oxydesk | ✅ | ✅ | ✅ | ✅ |
 | Oxy | ✅ | ✅ | ✅ | ✅ |
 
 The source code is Mac ARM ready.

@@ -22,6 +22,7 @@ fn main() -> ExitCode {
     let result = match args.command {
         Command::Pic { action } => run_pic(action),
         Command::Doc { action } => run_doc(action),
+        #[cfg(feature = "api")]
         Command::Tag { action } => run_tag(action, lang_id),
         Command::Rename {
             files, find, replace, regex, list, ant, ant_set,
@@ -262,6 +263,7 @@ fn run_doc(action: DocAction) -> Result<(), String> {
 
 // ─── TAG ────────────────────────────────────────────────────────
 
+#[cfg(feature = "api")]
 fn run_tag(action: TagAction, lang_id: &str) -> Result<(), String> {
     match action {
         TagAction::MarquerVu { files } => {
