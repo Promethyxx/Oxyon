@@ -46,8 +46,8 @@ Oxyon Desk brings those capabilities locally: document conversion, image process
 
 | Build | Platforms |
 |-------|-----------|
-| Oxyon | Linux ARM64 | Linux x64 | (Mac ARM64) | Windows x64
-| Oxyon Desk | Linux ARM64 | Linux x64 | (Mac ARM64) | Windows x64
+| Oxyon | Linux ARM64, Linux x64, (Mac ARM64), Windows x64 |
+| Oxyon Desk | Linux ARM64, Linux x64, (Mac ARM64), Windows x64 |
 
 The source code is Mac ARM ready.
 I don't have any, so I need to compile this with Github CI, which cost a lot of ratio compare to other platforms.
