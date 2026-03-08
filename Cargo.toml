@@ -1,6 +1,6 @@
 [package]
 name = "oxyon"
-version = "1.7.0"
+version = "1.7.1"
 edition = "2024"
 license = "GPL-3.0-or-later"
 
@@ -49,5 +49,5 @@ codegen-units = 1
 
 [features]
 default = ["api", "bundled"]
-api = []
-bundled = []
+api = [] # No binaries
+bundled = [] #Desk version

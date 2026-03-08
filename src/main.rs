@@ -46,7 +46,6 @@ struct ScrapeEntry {
 }
 #[derive(PartialEq, Clone, Copy, Debug)]
 enum ModuleType {
-    #[cfg(feature = "api")]
     Archive,
     #[cfg(feature = "api")]
     Audio,
@@ -95,19 +94,12 @@ struct OxyonApp {
         fanart_api_key: String,
         save_doc_format: bool,
         save_image_format: bool,
-        #[cfg(feature = "api")]
         save_archive_format: bool,
-        #[cfg(feature = "api")]
         archive_niveau: u32,
-        #[cfg(feature = "api")]
         archive_action: String,
-        #[cfg(feature = "api")]
         archive_backup_source: String,
-        #[cfg(feature = "api")]
         archive_backup_dest: String,
-        #[cfg(feature = "api")]
         archive_backup_exclusions: String,
-        #[cfg(feature = "api")]
         archive_multi_source: String,
         #[cfg(feature = "api")]
         save_audio_format: bool,
@@ -183,19 +175,12 @@ impl Default for OxyonApp {
                 fanart_api_key: String::new(),
                 save_doc_format: false,
                 save_image_format: false,
-                #[cfg(feature = "api")]
                 save_archive_format: false,
-                #[cfg(feature = "api")]
                 archive_niveau: 6,
-                #[cfg(feature = "api")]
                 archive_action: "compress".into(),
-                #[cfg(feature = "api")]
                 archive_backup_source: String::new(),
-                #[cfg(feature = "api")]
                 archive_backup_dest: String::new(),
-                #[cfg(feature = "api")]
                 archive_backup_exclusions: ".git, .github, target".into(),
-                #[cfg(feature = "api")]
                 archive_multi_source: String::new(),
                 #[cfg(feature = "api")]
                 save_audio_format: false,
@@ -267,7 +252,6 @@ impl OxyonApp {
             ModuleType::Video => self.format_choisi = String::new(),
             #[cfg(feature = "api")]
             ModuleType::Audio => self.format_choisi = String::new(),
-            #[cfg(feature = "api")]
             ModuleType::Archive => self.format_choisi = String::new(),
             _ => (),
         }
@@ -301,7 +285,6 @@ impl OxyonApp {
                         self.ratio_img = ratio as u32;
                     }
                 }
-                #[cfg(feature = "api")]
                 if let Some(arc) = parsed.get("archive") {
                     if let Some(fmt) = arc.get("format").and_then(|f| f.as_str()) {
                         if self.module_actif == ModuleType::Archive {
@@ -400,9 +383,7 @@ impl OxyonApp {
                 img_table.insert("ratio_img".to_string(), toml::Value::Integer(self.ratio_img as i64));
             }
         }
-        #[cfg(feature = "api")]
-        {
-            if self.save_archive_format && !self.format_choisi.is_empty() && self.module_actif == ModuleType::Archive {
+        if self.save_archive_format && !self.format_choisi.is_empty() && self.module_actif == ModuleType::Archive {
                 let archive = parsed.entry("archive").or_insert(toml::Value::Table(toml::Table::new()));
                 if let Some(arc_table) = archive.as_table_mut() {
                     arc_table.insert("format".to_string(), toml::Value::String(self.format_choisi.clone()));
@@ -422,6 +403,8 @@ impl OxyonApp {
                     arc_table.insert("multi_source".to_string(), toml::Value::String(self.archive_multi_source.clone()));
                 }
             }
+        #[cfg(feature = "api")]
+        {
             if self.save_audio_format && !self.format_choisi.is_empty() && self.module_actif == ModuleType::Audio {
                 let audio = parsed.entry("audio").or_insert(toml::Value::Table(toml::Table::new()));
                 if let Some(aud_table) = audio.as_table_mut() {
@@ -515,9 +498,7 @@ impl OxyonApp {
         let audio_action = self.audio_action.clone();
         #[cfg(feature = "api")]
         let audio_qualite = self.audio_qualite;
-        #[cfg(feature = "api")]
         let archive_niveau = self.archive_niveau;
-        #[cfg(feature = "api")]
         let archive_action = self.archive_action.clone();
         let img_action = self.image_action.clone();
         let jxl_mode = self.jxl_mode.clone();
@@ -586,7 +567,6 @@ impl OxyonApp {
 
                 // ── Exécution avec résultat détaillé ────────────────────
                 let result: Result<(), String> = match module {
-                    #[cfg(feature = "api")]
                     ModuleType::Archive => {
                         match archive_action.as_str() {
                             "extract" => {
@@ -935,14 +915,14 @@ impl eframe::App for OxyonApp {
             ui.separator();
             ui.horizontal_wrapped(|ui| {
                 let mut mods = vec![];
-                #[cfg(feature = "api")] mods.push((ModuleType::Archive, "📦 Archive"));
+                mods.push((ModuleType::Archive, "📦 Archive"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Audio, "🎵 Audio"));
                 mods.push((ModuleType::Doc, "📄 Doc"));
                 mods.push((ModuleType::Image, self.lang.tab_image));
                 mods.push((ModuleType::Rename, self.lang.tab_rename));
-                mods.push((ModuleType::Tools, "🛠 Tools"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Scrapper, "🔍 Scrapper"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Tag, "🏷️ Tag"));
+                mods.push((ModuleType::Tools, "🛠 Tools"));
                 #[cfg(feature = "api")] mods.push((ModuleType::Video, self.lang.tab_video));
                 mods.push((ModuleType::Settings, self.lang.tab_settings));
                 for (m, txt) in mods {
@@ -953,7 +933,6 @@ impl eframe::App for OxyonApp {
             });
             ui.separator();
             match self.module_actif {
-                #[cfg(feature = "api")]
                 ModuleType::Archive => {
                     ui.horizontal(|ui| {
                         ui.label(self.lang.action_label);

@@ -5,45 +5,69 @@
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE.txt)
 [![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)](https://www.rust-lang.org/)
 
-## Overview
+## What is Oxyon?
 
-Oxyon is a desktop multimedia toolkit built with Rust and [egui](https://github.com/emilide/egui). It handles file conversion, renaming, tagging and scraping in a single GUI application, with bundled binaries (ffmpeg, ffprobe, mkvpropedit) — no external tools to install.
-
-**Oxyon Desk** is a lightweight variant with only document and image conversion, no bundled binaries and no API calls.
+Oxyon is a portable desktop toolkit that centralizes a collection of everyday multimedia scripts into a single GUI application, built with Rust and [egui](https://github.com/emilide/egui). Think of it as a Swiss army knife for file processing: conversion, renaming, tagging, scraping — all in one place, with bundled binaries (ffmpeg, ffprobe, mkvpropedit) so there's nothing extra to install.
 
 Available in English and French.
 
-## Features
+## What is Oxyon Desk?
 
-- **Archive** — 7Z, ZIP, TAR compression and extraction
-- **Audio** — MP3, FLAC, AAC, OGG conversion via ffmpeg
-- **Documents** — DOCX, PDF, Markdown, ODT, HTML, LaTeX conversion (pure Rust, no pandoc)
-- **Pictures** — 15+ formats including AVIF, JXL, RAW, SVG, PSD, WebP, EXR
-- **Video/MKV tagging** — Write metadata (title, watched status, etc.) to Matroska files
-- **Media scraping** — Fetch movie/series metadata from TMDB
-- **File renamer** — Find/replace, insert, delete, numbering, case transform, extension editing with live preview
+Oxyon Desk was born from a real need. In a professional environment where tools like Adobe Acrobat Pro aren't available, the only option is often to upload sensitive documents to third-party websites (iLovePDF, iLoveIMG) — which never feels right.
+
+Oxyon Desk brings those capabilities locally: document conversion, image processing, archiving, renaming — all offline, with no external binaries, no API calls, and no data leaving your machine. It's built for professional use where privacy and autonomy matter.
+
+## Modules
+
+| Module | Oxyon | Oxyon Desk |
+|--------|:-----:|:----------:|
+| Archives (7Z, ZIP, TAR) | ✓ | ✓ |
+| Audio (MP3, FLAC, AAC, OGG) | ✓ | — |
+| Documents (DOCX, PDF, MD, ODT, HTML, LaTeX) | ✓ | ✓ |
+| File renamer (find/replace, insert, numbering, case, extensions) | ✓ | ✓ |
+| Pictures (15+ formats: AVIF, JXL, RAW, SVG, PSD, WebP, EXR…) | ✓ | ✓ |
+| Scraper (TMDB, Fanart) | ✓ | — |
+| Tagger (MKV tagging) | ✓ | — |
+| Tools | ✓ | ✓ |
+| Video (mkv, mp4, webm) | ✓ | — |
+
+
+## Key differences
+
+| | Oxyon | Oxyon Desk |
+|---|---|---|
+| Purpose | Swiss army knife for multimedia | Offline document & image processing |
+| Bundled binaries | ffmpeg, ffprobe, mkvpropedit | None |
+| API keys required | TMDB and Fanart (for scraping only) | None |
+| Internet access | Only if using the scraper | Never |
+| Portable | ✓ | ✓ |
 
 ## Platforms
 
-| Build | Platforms | Content |
-|-------|-----------|---------|
-| Oxyon | Windows x64, Linux x64, Linux ARM64 | Full feature set with bundled binaries |
-| Oxyon Desk | Windows x64, Linux x64, Linux ARM64 | Document & image & renamer only |
+| Build | Platforms |
+|-------|-----------|
+| Oxyon | Linux ARM64 | Linux x64 | (Mac ARM64) | Windows x64
+| Oxyon Desk | Linux ARM64 | Linux x64 | (Mac ARM64) | Windows x64
+
+The source code is Mac ARM ready.
+I don't have any, so I need to compile this with Github CI, which cost a lot of ratio compare to other platforms.
+i will post sometimes.
 
 ## Quick Start
 
 1. Download the latest release from [Releases](../../releases)
-2. Run the executable
+2. Run the executable — no installation needed
 3. Drop your files or browse to select them
 4. Choose your output format
 5. Click "Execute"
 
 ## Building from source
+
 ```bash
-# Full build
+# Full build (Oxyon)
 cargo build --release
 
-# Desk variant (no bundled tools, no API)
+# Desk variant
 cargo build --release --no-default-features --features bundled
 
 # Optimized distribution build
