@@ -2025,17 +2025,6 @@ fn main() -> eframe::Result {
         let (width, height) = icon_rgba.dimensions();
         options.viewport.icon = Some(std::sync::Arc::new(egui::IconData { rgba: icon_rgba.into_raw(), width, height }));
     }
-    let mut options = eframe::NativeOptions::default();
-    options.viewport.app_id = Some("io.github.promethyxx.Oxyon".into());
-    #[cfg(target_os = "windows")]
-    let icon_bytes: &[u8] = include_bytes!("../assets/Oxyon_icon.ico");
-    #[cfg(not(target_os = "windows"))]
-    let icon_bytes: &[u8] = include_bytes!("../assets/Oxyon_icon.png");
-    if let Ok(icon_data) = image::load_from_memory(icon_bytes) {
-        let icon_rgba = icon_data.to_rgba8();
-        let (width, height) = icon_rgba.dimensions();
-        options.viewport.icon = Some(std::sync::Arc::new(egui::IconData { rgba: icon_rgba.into_raw(), width, height }));
-    }
     let result = eframe::run_native(
         &format!("Oxyon v{}", VERSION),
         options,
