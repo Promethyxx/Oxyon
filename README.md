@@ -41,7 +41,7 @@ It's built for professional use where privacy and autonomy matter.
 
 ## Key differences
 
-| | Oxyon | Oxyon Desk ||
+| | | Oxyon | Oxyon Desk |
 |---|:---:|:---:|:---:|
 | Purpose | Key differences | Swiss army knife for multimedia | Offline document & image processing |
 | Bundled binaries |  ffmpeg, ffprobe, mkvpropedit | ✅ | ❌ |
