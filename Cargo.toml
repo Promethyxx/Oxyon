@@ -14,32 +14,32 @@ name = "oxy"
 path = "src/main_cli.rs"
 
 [dependencies]
-chrono = "0.4.43"
+chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 dotenvy = "0.15"
-eframe = "0.33.3"
-flate2 = "1.1"
+eframe = "0.33"
+flate2 = "1"
 html2md = "0.2"
 image = { version = "0.25", features = ["avif", "exr", "gif", "hdr", "ico", "jpeg", "png", "tiff", "webp"] }
 jxl-oxide = { version = "0.12", features = ["image"] }
-kamadak-exif = "0.6.1"
+kamadak-exif = "0.6"
 lopdf = "0.39"
 open = "5"
 psd = "0.3"
 pulldown-cmark = "0.13"
-quick-xml = "0.39.0"
+quick-xml = "0.39"
 rawloader = "0.37"
-regex = "1.10"
+regex = "1"
 reqwest = { version = "0.13", features = ["blocking", "json", "query"] }
 resvg = "0.47"
-rfd = "0.17.2"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+rfd = "0.17"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 sevenz-rust2 = { version = "0.20", features = ["compress"] }
 tar = "0.4"
-toml = "1.0.3"
-which = "8.0.0"
-zip = { version = "8.2", default-features = false, features = ["deflate"] }
+toml = "1"
+which = "8"
+zip = { version = "8", default-features = false, features = ["deflate"] }
 zune-core = "0.5"
 zune-jpegxl = "0.5"
 
