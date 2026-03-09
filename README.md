@@ -113,3 +113,7 @@ cargo build --profile dist
 ## License
 
 This project is licensed under the GNU General Public License v3.0 — see [LICENSE.txt](LICENSE.txt) for details.
+
+Crédits des composants intégrés
+FFmpeg : https://ffmpeg.org — Sous licence LGPLv2.1+ (ou GPL selon la compilation).
+mkvpropedit (MKVToolNix) : https://mkvtoolnix.download — Sous licence GPLv2.
