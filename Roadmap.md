@@ -17,8 +17,7 @@
 
 ### **Environnement**
 * 🖥️ **Github**
-    * 🤖 CI
-    * 💾 Repo
+    * 🤖 Check CI
 * 🌐 **Localisation**
 * 🏠 **Main**
 * ⌨️ **OxyCLI**
@@ -39,9 +38,11 @@
 ### **💰 Oxycash**
 * Tri par date décroissante
 * Entrée récurrente
+* Test workflow
+
 
 ### **🛍️ Oxyshop**
-
+* Test workflow
 ### **🖼️ Oxywall**
 
 ### **⌚ Oxywatch**
