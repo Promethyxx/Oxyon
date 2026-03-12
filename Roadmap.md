@@ -39,12 +39,15 @@
 # 🛠️ OXYTOOLS ROADMAP
 
 ### **💰 Oxycash**
-* Tri par date décroissante
+* mode Tri par date décroissante
 * Entrée récurrente
+* Recuperation dynamique du prix ?
 * Test workflow
+* dette cumulative auto
 
 
 ### **🛍️ Oxyshop**
+* Recuperation dynamique du prix ?
 * Test workflow
 ### **🖼️ Oxywall**
 
