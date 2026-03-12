@@ -1,54 +1,37 @@
-# 🚀 OXYON ROADMAP
+# 🚀 Oxyon
 
-### **Modules**
+🟢 OK
 * 📦 **Archive**
 * 🎵 **Audio**
 * 📄 **Doc**
+* 🏠 **Main**
+* 💻 **OxyDesk**
 * 🖼️ **Pic**
 * ✏️ **Rename**
-* 🔍 **Scrap**
-    * ⚠️ *Sensitive*
-* 🏷️ **Tag**
-    * Mp3tag features
-* 🛠️ **Tools**
-    * Icaros features
-    * Mediainfo features
 * 🎬 **Video**
 * ⚙️ **Settings**
-
 ---
 
-### **Environnement**
-* 🖥️ **Github**
-    * 🤖 Check CI
-* 🌐 **Localisation**
-* 🏠 **Main**
+🔴 NOW
+* 🖥️ **Github CI**
+    * Update
+* Flathub
+    * Video demo
 * ⌨️ **OxyCLI**
-* 💻 **OxyDesk**
-
+    * Update
+* 🌐 **Translation**
+    * Update
 ---
 
-### **Publication**
-* 📦 **Flathub**
-* 🪟 **Winget**
-* ➕ **More to come**
-
----
+🟡 NEXT
+* 🔍 **Scrap**
+    * Search improvement
 ---
 
-# 🛠️ OXYTOOLS ROADMAP
-
-### **💰 Oxycash**
-* mode Tri par date décroissante
-* Entrée récurrente
-* Recuperation dynamique du prix ?
-* Test workflow
-* dette cumulative auto
-
-
-### **🛍️ Oxyshop**
-* Recuperation dynamique du prix ?
-* Test workflow
-### **🖼️ Oxywall**
-
-### **⌚ Oxywatch**
+🔵 LATER
+* 🏷️ **Tag**
+    * Add Mp3tag features
+* 🛠️ **Tools**
+    * Add Icaros features
+    * Add Mediainfo features
+---
